@@ -17,6 +17,10 @@ Install
 	- Project Properties
 	- Java Build Path
 	- Add external JARs->"Java/Java Virtual Machines/jdk1.7.../Contents/Home/jre/lib/jfxrt.jar"
+- Set Compiler Level to Java 7
+    - Project Properties
+    - Java Compiler
+    - Compiler Compliance Level: 1.7
 - should fix any errors
 
 Dependencies
@@ -26,4 +30,4 @@ Project uses several libaries.
 
 - JDK 7
 - JavaFX (included in JDK 7 install)
-- Smack 3
+- Smack 3 (smack, smackx, smackx-debug, smackx-jingle)
