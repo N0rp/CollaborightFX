@@ -1,6 +1,8 @@
 CollaborightFX
 ==============
 
+Collaborate right through JavaFX.
+
 Install
 --------
 
@@ -16,4 +18,12 @@ Install
 	- Java Build Path
 	- Add external JARs->"Java/Java Virtual Machines/jdk1.7.../Contents/Home/jre/lib/jfxrt.jar"
 - should fix any errors
-	
+
+Dependencies
+--------------
+
+Project uses several libaries. 
+
+- JDK 7
+- JavaFX (included in JDK 7 install)
+- Smack 3
