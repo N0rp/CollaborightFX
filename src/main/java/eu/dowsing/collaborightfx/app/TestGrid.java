@@ -13,7 +13,7 @@ import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Stage;
 
-import org.jivesoftware.smack.ConnectionConfiguration;
+import org.jivesoftware.smack.XMPPException;
 
 public class TestGrid extends Application {
 
@@ -67,29 +67,44 @@ public class TestGrid extends Application {
         }
     }
 
-    private static void startJabber() {
-        ConnectionConfiguration config = new ConnectionConfiguration("jabber.org", 5222);
-    }
-
     public static void main(String[] args) {
 
-        PreferenceTest test = new PreferenceTest();
         try {
-            test.load();
+            PreferenceTest.load(true);
         } catch (IOException | InvalidPreferencesFormatException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
-        test.printPreference();
+        PreferenceTest.printPreference();
 
+        Jabber jabber = new Jabber();
         try {
-            test.save();
+            PreferenceTest.save();
         } catch (IOException | BackingStoreException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
 
-        startJabber();
-        Application.launch(TestGrid.class);
+        try {
+            jabber.connect();
+            jabber.login();
+            jabber.doStuff();
+            System.out.println("Found " + jabber.getEntryCount() + " buddy entries");
+            System.out.println("Online users are: " + jabber.getOnlineUserNames());
+            // jabber.createEntry("RichardG@chat.maibornwolff.de", "Richard");
+            jabber.sendMessage("Ping", "fyinconvenience@xabber.de");
+            System.out.println("Launching GUI");
+            Application.launch(TestGrid.class);
+        } catch (XMPPException e) {
+            System.err.println("Jabber did not want to connect");
+            e.printStackTrace();
+        } catch (Exception e) {
+            System.err.println("Jabber did not want to add user");
+            e.printStackTrace();
+        } finally {
+            System.out.println("Disconnecting jabber");
+            jabber.disconnect();
+        }
+
     }
 }
