@@ -1,8 +1,11 @@
-package eu.dowsing.collaborightfx.app;
+package eu.dowsing.collaborightfx.app.xmpp;
 
 import java.util.LinkedList;
 import java.util.List;
-import java.util.prefs.Preferences;
+
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ObservableValue;
+import javafx.concurrent.Task;
 
 import org.jivesoftware.smack.Chat;
 import org.jivesoftware.smack.ChatManager;
@@ -17,6 +20,8 @@ import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Presence;
 
+//import org.jivesoftware.smackx.jingle.
+
 public class Jabber {
 
     private ChatManager chatManager;
@@ -24,17 +29,122 @@ public class Jabber {
 
     private Connection conn2;
 
-    public void connect() throws XMPPException {
-        Preferences p = PreferenceTest.getPreferences();
-        String host = p.get(PreferenceTest.JABBER_HOST, PreferenceTest.JABBER_HOST_DEFAULT);
+    public enum ConnectStatus {
+        NOT_CONNECTED, LOGGED_IN, NOT_LOGGED_IN
+    }
+
+    private ObservableValue<ConnectStatus> xmppConnectStatus = new SimpleObjectProperty<ConnectStatus>(
+            ConnectStatus.NOT_CONNECTED);
+
+    public ObservableValue<ConnectStatus> getXmppConnectStatus() {
+        return xmppConnectStatus;
+    }
+
+    private String host;
+    private int port;
+    private String user;
+    private String pw;
+
+    /**
+     * Set connection data for the xmpp connection
+     * 
+     * @param host
+     * @param port
+     * @param user
+     * @param password
+     */
+    public void setConnectionData(String host, int port, String user, String password) {
+        this.host = host;
+        this.port = port;
+        this.user = user;
+        this.pw = password;
+    }
+
+    public String getHost() {
+        return host;
+    }
+
+    public String getUser() {
+        return user;
+    }
+
+    private Task<Boolean> connectLoginTask = new Task<Boolean>() {
+        @Override
+        protected Boolean call() {
+            ConnectStatus result = connectAndLoginSync();
+            return result == ConnectStatus.LOGGED_IN;
+        }
+
+        @Override
+        protected void succeeded() {
+            super.succeeded();
+            updateMessage("Done!");
+        }
+
+        @Override
+        protected void cancelled() {
+            super.cancelled();
+            updateMessage("Cancelled!");
+        }
+
+        @Override
+        protected void failed() {
+            super.failed();
+            updateMessage("Failed!");
+        }
+    };
+
+    /**
+     * Connect and login asynchroniously. {@link Jabber#getXmppConnectListener()} will be notified with results.
+     * 
+     * <p/>
+     * <b>Note</b> {@link Jabber#setConnectionData(String host, int port, String user, String password)} should be
+     * called before this.
+     */
+    public void connectAndLoginAsync() {
+        System.out.println("Login using user | password : " + user + " | " + pw);
+        new Thread(connectLoginTask).start();
+    }
+
+    /**
+     * Connect and login synchronously.
+     * 
+     * <p/>
+     * <b>Note</b> {@link Jabber#setConnectionData(String host, int port, String user, String password)} should be
+     * called before this.
+     * 
+     * @return the result of the login
+     */
+    public ConnectStatus connectAndLoginSync() {
+        try {
+            connect(host, port);
+        } catch (XMPPException e) {
+            System.err.println("Could not connect to " + host + "through port " + port);
+            e.printStackTrace();
+            return ConnectStatus.NOT_CONNECTED;
+        }
+
+        try {
+            login(user, pw);
+        } catch (XMPPException e) {
+            System.err.println("Could not connect to " + host + "through port " + port + " as user " + user);
+            e.printStackTrace();
+            return ConnectStatus.NOT_LOGGED_IN;
+        }
+
+        return ConnectStatus.LOGGED_IN;
+    }
+
+    private void connect(String host, int port) throws XMPPException {
         ConnectionConfiguration config = new ConnectionConfiguration(host, 5222);
         config.setSASLAuthenticationEnabled(true);
 
         conn2 = new XMPPConnection(config);
         conn2.connect();
 
+        this.host = conn2.getHost();
+
         chatManager = conn2.getChatManager();
-        messageListener = new MyMessageListener();
         chatManager.addChatListener(new ChatManagerListener() {
 
             @Override
@@ -55,14 +165,11 @@ public class Jabber {
         });
     }
 
-    public void login() throws XMPPException {
-        Preferences p = PreferenceTest.getPreferences();
-        String user = p.get(PreferenceTest.JABBER_USER, PreferenceTest.JABBER_USER_DEFAULT);
-        String pw = p.get(PreferenceTest.JABBER_PASSWORD, PreferenceTest.JABBER_PASSWORD_DEFAULT);
-        System.out.println("Login using user | password : " + user + " | " + pw);
+    private void login(String user, String password) throws XMPPException {
         // You have to put this code before you login
         // SASLAuthentication.supportSASLMechanism("PLAIN", 0);
-        conn2.login(user, pw);
+        conn2.login(user, password);
+        this.user = conn2.getUser();
     }
 
     public void doStuff() {
@@ -73,6 +180,7 @@ public class Jabber {
 
     public void sendMessage(String message, String buddyJID) throws XMPPException {
         System.out.println(String.format("Sending mesage '%1$s' to user %2$s", message, buddyJID));
+
         Chat chat = chatManager.createChat(buddyJID, messageListener);
         chat.sendMessage(message);
     }
@@ -114,6 +222,7 @@ public class Jabber {
         public void processMessage(Chat chat, Message message) {
             String from = message.getFrom();
             String body = message.getBody();
+
             System.out.println(String.format("Received message '%1$s' from %2$s", body, from));
         }
     }

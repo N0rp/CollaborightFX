@@ -12,10 +12,12 @@ import java.util.prefs.Preferences;
 public class PreferenceTest {
 
     public static final String JABBER_HOST_DEFAULT = "jabber.org";
+    public static final int JABBER_PORT_DEFAULT = 5522;
     public static final String JABBER_USER_DEFAULT = "foo";
     public static final String JABBER_PASSWORD_DEFAULT = "bar$";
 
     public static final String JABBER_HOST = "JabberHost";
+    public static final String JABBER_PORT = "JabberPort";
     public static final String JABBER_USER = "JabberUser";
     public static final String JABBER_PASSWORD = "JabberPw";
 
@@ -99,6 +101,10 @@ public class PreferenceTest {
 
         if (prefs.get(JABBER_HOST, e).equals(e)) {
             prefs.put(JABBER_HOST, JABBER_HOST_DEFAULT);
+        }
+
+        if (prefs.get(JABBER_PORT, e).equals(e)) {
+            prefs.putInt(JABBER_PORT, JABBER_PORT_DEFAULT);
         }
 
         if (prefs.get(JABBER_USER, e).equals(e)) {
