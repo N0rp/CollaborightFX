@@ -13,23 +13,25 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.Scene;
 import javafx.scene.control.ListView;
-import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 
 import org.jivesoftware.smack.XMPPException;
 
-import eu.dowsing.collaborightfx.app.xmpp.Jabber;
-import eu.dowsing.collaborightfx.app.xmpp.Jabber.ConnectStatus;
+import eu.dowsing.collaborightfx.app.xmpp.XmppConnector;
+import eu.dowsing.collaborightfx.app.xmpp.XmppConnector.ConnectStatus;
 import eu.dowsing.collaborightfx.model.painting.Painting;
 import eu.dowsing.collaborightfx.view.painting.PaintingView;
 
 public class TestGrid extends Application {
 
     private ListView<String> usersList;
+    private ListView<String> messageList;
     private ObservableList<String> userData = FXCollections.observableArrayList("Richard", "Rogers");
+    private ObservableList<String> messageData = FXCollections.observableArrayList("Hello", "You");
 
     private Text accountUser;
     private PaintingView canvas;
@@ -46,11 +48,22 @@ public class TestGrid extends Application {
 
         // TODO implement graphs with JUNG, JFreeChart or JGraphX?
 
-        testJabber();
+        // testJabber();
     }
 
     private Pane createAndInitUI() {
-        BorderPane border = new BorderPane();
+        /* **********************
+         * Create content
+         */
+        // create drawing canvas
+        Painting painting = null;
+        try {
+            painting = Painting.load(lastPainting);
+            canvas = new PaintingView(painting, 500, 600);
+        } catch (Exception e) {
+            System.err.println("Could not load initial painting");
+            e.printStackTrace();
+        }
 
         // create control
         HBox control = new HBox();
@@ -61,44 +74,32 @@ public class TestGrid extends Application {
         usersList = new ListView<>();
         usersList.setItems(userData);
 
-        // create drawing canvas
-        Painting painting;
-        try {
-            painting = Painting.load(lastPainting);
-            canvas = new PaintingView(painting, 500, 600);
-            Pane canvasPane = new Pane();
-            canvasPane.getChildren().add(canvas);
-            border.setCenter(canvasPane);
-        } catch (Exception e) {
-            System.err.println("Could not load initial painting");
-            e.printStackTrace();
-        }
+        // create message list
+        messageList = new ListView<>();
+        messageList.setItems(messageData);
 
-        border.setTop(control);
-        border.setLeft(usersList);
+        /* **********************
+         * Create layout
+         */
+        Pane main = new VBox();
+        Pane headerBox = new VBox();
+        Pane messageBox = new VBox();
+        Pane middleBox = new HBox();
+        main.getChildren().addAll(headerBox, middleBox, messageBox);
 
-        return border;
-    }
+        Pane canvasBox = new Pane();
+        Pane userBox = new VBox();
+        middleBox.getChildren().addAll(canvasBox, userBox);
 
-    public static void main(String[] args) {
-        System.out.println("Loading Preference");
-        try {
-            PreferenceTest.load(true);
-        } catch (IOException | InvalidPreferencesFormatException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-        // PreferenceTest.printPreference();
+        /* **********************
+         * Add content to layout
+         */
+        headerBox.getChildren().add(new Text("Header"));
+        userBox.getChildren().addAll(control, usersList);
+        canvasBox.getChildren().add(canvas);
+        messageBox.getChildren().add(messageList);
 
-        try {
-            PreferenceTest.save();
-        } catch (IOException | BackingStoreException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-
-        System.out.println("Launching App");
-        Application.launch(TestGrid.class);
+        return main;
     }
 
     private void updateUser(final String text) {
@@ -111,7 +112,7 @@ public class TestGrid extends Application {
         });
     }
 
-    private void testJabberMessage(Jabber jabber) {
+    private void testJabberMessage(XmppConnector jabber) {
         System.out.println("Test jabber messaging");
         try {
             updateUser("Connecting...");
@@ -143,7 +144,14 @@ public class TestGrid extends Application {
         String user = p.get(PreferenceTest.JABBER_USER, PreferenceTest.JABBER_USER_DEFAULT);
         String pw = p.get(PreferenceTest.JABBER_PASSWORD, PreferenceTest.JABBER_PASSWORD_DEFAULT);
 
-        final Jabber jabber = new Jabber();
+        if (TestGrid.xmppArguments.isValid()) {
+            host = TestGrid.xmppArguments.host;
+            port = TestGrid.xmppArguments.port;
+            user = TestGrid.xmppArguments.user;
+            pw = TestGrid.xmppArguments.pw;
+        }
+
+        final XmppConnector jabber = new XmppConnector();
         jabber.setConnectionData(host, port, user, pw);
         jabber.getXmppConnectStatus().addListener(new ChangeListener<ConnectStatus>() {
 
@@ -158,4 +166,55 @@ public class TestGrid extends Application {
         });
         jabber.connectAndLoginAsync();
     }
+
+    public static void main(String[] args) {
+        System.out.println("Loading Preference");
+        try {
+            PreferenceTest.load(true);
+        } catch (IOException | InvalidPreferencesFormatException e) {
+            System.err.println("Could not load preferences");
+            e.printStackTrace();
+        }
+        // PreferenceTest.printPreference();
+
+        try {
+            PreferenceTest.save();
+        } catch (IOException | BackingStoreException e) {
+            System.err.println("Could not save preferences");
+            e.printStackTrace();
+        }
+
+        if (args.length > 0) {
+            if (args.length != 4) {
+                System.err.println("Arguments must be exactly 4: Xmpp host, port, user and password");
+            } else {
+                TestGrid.xmppArguments.setArguments(args);
+            }
+        }
+
+        System.out.println("Launching App");
+        Application.launch(TestGrid.class);
+    }
+
+    public static XmppArguments xmppArguments = new TestGrid.XmppArguments();
+
+    public static class XmppArguments {
+        private String host;
+        private int port;
+        private String user;
+        private String pw;
+
+        public boolean isValid() {
+            return host != null && port > 0 && user != null && pw != null;
+        }
+
+        public void setArguments(String[] args) {
+            this.host = args[0];
+            this.port = Integer.parseInt(args[1]);
+            this.user = args[2];
+            this.pw = args[3];
+
+        }
+    }
+
 }

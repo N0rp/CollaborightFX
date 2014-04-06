@@ -20,54 +20,30 @@ import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Presence;
 
-//import org.jivesoftware.smackx.jingle.
-
-public class Jabber {
-
-    private ChatManager chatManager;
-    private MessageListener messageListener;
-
-    private Connection conn2;
+/**
+ * Connects to xmpp network.
+ * 
+ * @author richardg
+ * 
+ */
+public class XmppConnector {
 
     public enum ConnectStatus {
         NOT_CONNECTED, LOGGED_IN, NOT_LOGGED_IN
     }
 
-    private ObservableValue<ConnectStatus> xmppConnectStatus = new SimpleObjectProperty<ConnectStatus>(
-            ConnectStatus.NOT_CONNECTED);
+    private ChatManager chatManager;
+    private MessageListener messageListener;
 
-    public ObservableValue<ConnectStatus> getXmppConnectStatus() {
-        return xmppConnectStatus;
-    }
+    private Connection conn;
 
     private String host;
     private int port;
     private String user;
     private String pw;
 
-    /**
-     * Set connection data for the xmpp connection
-     * 
-     * @param host
-     * @param port
-     * @param user
-     * @param password
-     */
-    public void setConnectionData(String host, int port, String user, String password) {
-        this.host = host;
-        this.port = port;
-        this.user = user;
-        this.pw = password;
-    }
-
-    public String getHost() {
-        return host;
-    }
-
-    public String getUser() {
-        return user;
-    }
-
+    private ObservableValue<ConnectStatus> xmppConnectStatus = new SimpleObjectProperty<ConnectStatus>(
+            ConnectStatus.NOT_CONNECTED);
     private Task<Boolean> connectLoginTask = new Task<Boolean>() {
         @Override
         protected Boolean call() {
@@ -95,11 +71,11 @@ public class Jabber {
     };
 
     /**
-     * Connect and login asynchroniously. {@link Jabber#getXmppConnectListener()} will be notified with results.
+     * Connect and login asynchroniously. {@link XmppConnector#getXmppConnectListener()} will be notified with results.
      * 
      * <p/>
-     * <b>Note</b> {@link Jabber#setConnectionData(String host, int port, String user, String password)} should be
-     * called before this.
+     * <b>Note</b> {@link XmppConnector#setConnectionData(String host, int port, String user, String password)} should
+     * be called before this.
      */
     public void connectAndLoginAsync() {
         System.out.println("Login using user | password : " + user + " | " + pw);
@@ -110,8 +86,8 @@ public class Jabber {
      * Connect and login synchronously.
      * 
      * <p/>
-     * <b>Note</b> {@link Jabber#setConnectionData(String host, int port, String user, String password)} should be
-     * called before this.
+     * <b>Note</b> {@link XmppConnector#setConnectionData(String host, int port, String user, String password)} should
+     * be called before this.
      * 
      * @return the result of the login
      */
@@ -139,12 +115,12 @@ public class Jabber {
         ConnectionConfiguration config = new ConnectionConfiguration(host, 5222);
         config.setSASLAuthenticationEnabled(true);
 
-        conn2 = new XMPPConnection(config);
-        conn2.connect();
+        conn = new XMPPConnection(config);
+        conn.connect();
 
-        this.host = conn2.getHost();
+        this.host = conn.getHost();
 
-        chatManager = conn2.getChatManager();
+        chatManager = conn.getChatManager();
         chatManager.addChatListener(new ChatManagerListener() {
 
             @Override
@@ -153,7 +129,7 @@ public class Jabber {
                 try {
                     chat.sendMessage("pong");
                 } catch (XMPPException e) {
-                    // TODO Auto-generated catch block
+                    System.err.println("Cannot send message to chat");
                     e.printStackTrace();
                 }
 
@@ -168,14 +144,41 @@ public class Jabber {
     private void login(String user, String password) throws XMPPException {
         // You have to put this code before you login
         // SASLAuthentication.supportSASLMechanism("PLAIN", 0);
-        conn2.login(user, password);
-        this.user = conn2.getUser();
+        conn.login(user, password);
+        this.user = conn.getUser();
+    }
+
+    public ObservableValue<ConnectStatus> getXmppConnectStatus() {
+        return xmppConnectStatus;
+    }
+
+    /**
+     * Set connection data for the xmpp connection
+     * 
+     * @param host
+     * @param port
+     * @param user
+     * @param password
+     */
+    public void setConnectionData(String host, int port, String user, String password) {
+        this.host = host;
+        this.port = port;
+        this.user = user;
+        this.pw = password;
+    }
+
+    public String getHost() {
+        return host;
+    }
+
+    public String getUser() {
+        return user;
     }
 
     public void doStuff() {
         Presence presence = new Presence(Presence.Type.available);
         presence.setStatus("What's up everyone?");
-        conn2.sendPacket(presence);
+        conn.sendPacket(presence);
     }
 
     public void sendMessage(String message, String buddyJID) throws XMPPException {
@@ -186,12 +189,12 @@ public class Jabber {
     }
 
     public int getEntryCount() {
-        return conn2.getRoster().getEntries().size();
+        return conn.getRoster().getEntries().size();
     }
 
     public List<String> getOnlineUserNames() {
         List<String> names = new LinkedList<String>();
-        Roster roster = conn2.getRoster();
+        Roster roster = conn.getRoster();
         for (RosterEntry entry : roster.getEntries()) {
             System.out.println(String.format("Buddy:%1$s - Status:%2$s", entry.getName(), entry.getStatus()));
             if (entry.getStatus() != null) {
@@ -203,7 +206,7 @@ public class Jabber {
 
     public void createEntry(String user, String name) throws Exception {
         System.out.println(String.format("Creating entry for buddy '%1$s' with name %2$s", user, name));
-        Roster roster = conn2.getRoster();
+        Roster roster = conn.getRoster();
 
         roster.createEntry(user, name, null);
         // RosterEntry entry = roster.getEntry(user);
@@ -211,8 +214,8 @@ public class Jabber {
     }
 
     public void disconnect() {
-        if (conn2 != null) {
-            conn2.disconnect();
+        if (conn != null) {
+            conn.disconnect();
         }
     }
 

@@ -144,7 +144,13 @@ public class PaintingView extends Canvas {
             }
 
         });
+
     }
+
+    // @Override
+    // public void paint(Graphics g) {
+    // super.paint(g);
+    // }
 
     public Color getBackgroundColor() {
         RgbaColor color = painting.getBackground();
