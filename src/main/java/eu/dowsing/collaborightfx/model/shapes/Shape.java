@@ -63,13 +63,24 @@ public class Shape {
         return lineWidth;
     }
 
+    public void setLineWidth(double lineWidth) {
+        this.lineWidth = lineWidth;
+    }
+
     public RgbaColor getFill() {
         return fillColor;
     }
 
-    public RgbaColor getStroke() {
+    public void setFill(RgbaColor color) {
+        this.fillColor = color;
+    }
 
+    public RgbaColor getStroke() {
         return strokeColor;
+    }
+
+    public void setStroke(RgbaColor color) {
+        this.strokeColor = color;
     }
 
     /**

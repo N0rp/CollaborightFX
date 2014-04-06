@@ -11,11 +11,19 @@ import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
 import javafx.scene.Scene;
+import javafx.scene.control.ColorPicker;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.ListView;
+import javafx.scene.control.Toggle;
+import javafx.scene.control.ToggleButton;
+import javafx.scene.control.ToggleGroup;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 
@@ -33,16 +41,33 @@ public class TestGrid extends Application {
     private ObservableList<String> userData = FXCollections.observableArrayList("Richard", "Rogers");
     private ObservableList<String> messageData = FXCollections.observableArrayList("Hello", "You");
 
+    private ObservableList<Integer> lineWidthOptions = FXCollections.observableArrayList(1, 2, 5, 10);
+
+    private ListView<String> paintingUserList;
+    private ObservableList<String> paintingUserData = FXCollections.observableArrayList("PaintingPartner1",
+            "PaintingPartner2");
+
+    private ComboBox<Integer> lineWidthCombo = new ComboBox<>(lineWidthOptions);
+
     private Text accountUser;
     private PaintingView canvas;
 
     private static final String lastPainting = "res/painting/current.xml";
 
+    private ColorPicker strokePicker;
+
+    private Color strokeColor;
+
+    final ToggleGroup toolGroup = new ToggleGroup();
+    ToggleButton tbDraw = new ToggleButton("Draw");
+    ToggleButton tbText = new ToggleButton("Text");
+    ToggleButton tbSelect = new ToggleButton("Select");
+
     @Override
     public void start(Stage primaryStage) {
         Pane pane = createAndInitUI();
 
-        final Scene scene = new Scene(pane, 800, 600);
+        final Scene scene = new Scene(pane, 800, 800);
         primaryStage.setScene(scene);
         primaryStage.show();
 
@@ -60,6 +85,7 @@ public class TestGrid extends Application {
         try {
             painting = Painting.load(lastPainting);
             canvas = new PaintingView(painting, 500, 600);
+            strokeColor = canvas.getFillColor();
         } catch (Exception e) {
             System.err.println("Could not load initial painting");
             e.printStackTrace();
@@ -78,26 +104,61 @@ public class TestGrid extends Application {
         messageList = new ListView<>();
         messageList.setItems(messageData);
 
+        // create painting list
+        paintingUserList = new ListView<>();
+        paintingUserList.setItems(paintingUserData);
+
+        // create color picker for fill
+        strokePicker = new ColorPicker();
+        strokePicker.setValue(strokeColor);
+        strokePicker.setOnAction(new EventHandler<ActionEvent>() {
+            public void handle(ActionEvent t) {
+                strokeColor = strokePicker.getValue();
+                canvas.setStrokeColor(strokeColor);
+            }
+        });
+
+        // create lineWidth picker
+        lineWidthCombo.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent arg0) {
+                canvas.setLineWidth(lineWidthCombo.getValue());
+            }
+        });
+
+        // create drawing tool selector
+        tbDraw.setToggleGroup(toolGroup);
+        tbDraw.setSelected(true);
+        tbText.setToggleGroup(toolGroup);
+        tbSelect.setToggleGroup(toolGroup);
+        toolGroup.selectedToggleProperty().addListener(new ChangeListener<Toggle>() {
+            public void changed(ObservableValue<? extends Toggle> ov, Toggle toggle, Toggle new_toggle) {
+                // TODO
+            }
+        });
+
         /* **********************
          * Create layout
          */
         Pane main = new VBox();
-        Pane headerBox = new VBox();
+        Pane headerBox = new HBox();
         Pane messageBox = new VBox();
         Pane middleBox = new HBox();
-        main.getChildren().addAll(headerBox, middleBox, messageBox);
+        main.getChildren().addAll(headerBox, middleBox);
 
-        Pane canvasBox = new Pane();
+        Pane paintingBox = new VBox();
+        Pane canvasBox = new VBox();
         Pane userBox = new VBox();
-        middleBox.getChildren().addAll(canvasBox, userBox);
+        middleBox.getChildren().addAll(paintingBox, userBox);
+        paintingBox.getChildren().addAll(canvasBox, messageBox);
 
         /* **********************
          * Add content to layout
          */
-        headerBox.getChildren().add(new Text("Header"));
-        userBox.getChildren().addAll(control, usersList);
-        canvasBox.getChildren().add(canvas);
-        messageBox.getChildren().add(messageList);
+        headerBox.getChildren().addAll(new Text("Header"), tbDraw, tbText, tbSelect, strokePicker, lineWidthCombo);
+        userBox.getChildren().addAll(control, paintingUserList, usersList);
+        messageBox.getChildren().addAll(messageList);
+        canvasBox.getChildren().addAll(canvas);
 
         return main;
     }

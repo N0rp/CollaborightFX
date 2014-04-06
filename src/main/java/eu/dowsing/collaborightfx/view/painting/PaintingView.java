@@ -43,6 +43,30 @@ public class PaintingView extends Canvas {
         init(painting);
     }
 
+    public void setFillColor(Color color) {
+        painting.setFillColor(toModel(color));
+    }
+
+    public Color getFillColor() {
+        return toFx(painting.getFillColor());
+    }
+
+    public void setStrokeColor(Color color) {
+        painting.setStrokeColor(toModel(color));
+    }
+
+    public Color getStrokeColor() {
+        return toFx(painting.getStrokeColor());
+    }
+
+    public double getLineWidth() {
+        return painting.getLineWidth();
+    }
+
+    public void setLineWidth(double lineWidth) {
+        this.painting.setLineWidth(lineWidth);
+    }
+
     private void init(Painting painting) {
         this.painting = painting;
         this.gc = canvas.getGraphicsContext2D();
@@ -77,10 +101,6 @@ public class PaintingView extends Canvas {
     }
 
     private void initControl() {
-        gc.setFill(Color.GREEN);
-        gc.setStroke(Color.BLUE);
-        gc.setLineWidth(2);
-
         // begin a path when the user presses the mouse (primary button)
         // prepare to move the painting (secondary mouse button)
         canvas.addEventHandler(MouseEvent.MOUSE_PRESSED, new EventHandler<MouseEvent>() {
@@ -88,12 +108,11 @@ public class PaintingView extends Canvas {
             public void handle(MouseEvent e) {
                 if (e.getButton() == MouseButton.PRIMARY) {
                     // System.out.println("Mouse pressed");
-                    Shape shape = new Shape(e.getX(), e.getY(), 5, mover);
 
-                    shapes.add(new ShapeView(painting.addShape(shape)));
+                    ShapeView shape = new ShapeView(painting.createShape(e.getX(), e.getY(), mover));
+                    shapes.add(shape);
 
-                    gc.beginPath();
-                    gc.moveTo(e.getX(), e.getY());
+                    shape.draw(gc, mover);
                     System.out.println("Shape size now: " + shapes.size());
                     // gc.moveTo(e.getX(), e.getY());
                 } else if (e.getButton() == MouseButton.SECONDARY) {
@@ -112,9 +131,7 @@ public class PaintingView extends Canvas {
                     shape.getShape().addPoint(e.getX(), e.getY(), false, mover);
                     // Point2D prev = shape.getLastPoint(1);
                     // gc.fillRoundRect(e.getX(), e.getY(), 2, 2, 10, 10);
-                    gc.lineTo(e.getX(), e.getY());
-                    gc.stroke();
-
+                    shape.draw(gc, mover);
                     // gc.quadraticCurveTo(prev.getX(), prev.getY(), e.getX(), e.getY());
                 } else if (e.getButton() == MouseButton.SECONDARY) {
                     System.out.println("Move view");
@@ -146,11 +163,6 @@ public class PaintingView extends Canvas {
         });
 
     }
-
-    // @Override
-    // public void paint(Graphics g) {
-    // super.paint(g);
-    // }
 
     public Color getBackgroundColor() {
         RgbaColor color = painting.getBackground();
@@ -225,5 +237,20 @@ public class PaintingView extends Canvas {
             fxShapes.add(new ShapeView(shape));
         }
         return fxShapes;
+    }
+
+    /**
+     * Transform model to fx view.
+     * 
+     * @param shapes
+     * @return
+     */
+    public static RgbaColor toModel(Color color) {
+        return new RgbaColor((int) (color.getRed() * 255), (int) (color.getRed() * 255), (int) (color.getRed() * 255),
+                (float) color.getOpacity());
+    }
+
+    public static Color toFx(RgbaColor color) {
+        return Color.rgb(color.getRed(), color.getGreen(), color.getBlue(), color.getAlpha());
     }
 }

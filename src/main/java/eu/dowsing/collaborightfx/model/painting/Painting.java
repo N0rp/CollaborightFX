@@ -40,8 +40,52 @@ public class Painting {
     @ElementList(type = Shape.class)
     private List<Shape> shapes;
 
+    private RgbaColor fillColor = RgbaColor.BLUE;
+    private RgbaColor strokeColor = RgbaColor.GREEN;
+
+    private double lineWidth = 5;
+
     public Painting() {
         this.shapes = new LinkedList<>();
+    }
+
+    public void setFillColor(RgbaColor fillColor) {
+        this.fillColor = fillColor;
+    }
+
+    public RgbaColor getFillColor() {
+        return this.fillColor;
+    }
+
+    public void setStrokeColor(RgbaColor strokeColor) {
+        this.strokeColor = strokeColor;
+    }
+
+    public RgbaColor getStrokeColor() {
+        return this.strokeColor;
+    }
+
+    public double getLineWidth() {
+        return this.lineWidth;
+    }
+
+    public void setLineWidth(double lineWidth) {
+        this.lineWidth = lineWidth;
+    }
+
+    /**
+     * Create a new shape with the current painting parameters and add it to the list of shapes.
+     * 
+     * @param x
+     * @param y
+     * @param mover
+     * @return
+     */
+    public Shape createShape(double x, double y, PaintingMover mover) {
+        Shape shape = new Shape(x, y, lineWidth, mover);
+        shape.setFill(fillColor);
+        shape.setStroke(strokeColor);
+        return shape;
     }
 
     /**
