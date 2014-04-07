@@ -3,9 +3,15 @@ package eu.dowsing.collaborightfx.app.xmpp;
 import java.util.LinkedList;
 import java.util.List;
 
+import javafx.beans.property.IntegerPropertyBase;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringPropertyBase;
 import javafx.beans.value.ObservableValue;
 import javafx.concurrent.Task;
+import javafx.concurrent.WorkerStateEvent;
+import javafx.event.EventHandler;
 
 import org.jivesoftware.smack.Chat;
 import org.jivesoftware.smack.ChatManager;
@@ -44,28 +50,64 @@ public class XmppConnector {
 
     private ObservableValue<ConnectStatus> xmppConnectStatus = new SimpleObjectProperty<ConnectStatus>(
             ConnectStatus.NOT_CONNECTED);
+    private StringPropertyBase xmppHost = new SimpleStringProperty("No Host");
+    private StringPropertyBase xmppUser = new SimpleStringProperty("No User");
+    private IntegerPropertyBase xmppPort = new SimpleIntegerProperty(0);
+    private IntegerPropertyBase xmppContactCount = new SimpleIntegerProperty(0);
+
+    public StringPropertyBase getXmppHost() {
+        return xmppHost;
+    }
+
+    public ObservableValue<String> getXmppUser() {
+        return xmppUser;
+    }
+
+    public ObservableValue<Number> getXmppPort() {
+        return xmppPort;
+    }
+
+    public ObservableValue<Number> getXmppContactCount() {
+        return xmppContactCount;
+    }
+
+    public ObservableValue<ConnectStatus> getXmppConnectStatus() {
+        return xmppConnectStatus;
+    }
+
     private Task<Boolean> connectLoginTask = new Task<Boolean>() {
         @Override
         protected Boolean call() {
+            System.out.println("Starting Asynchronous Login");
             ConnectStatus result = connectAndLoginSync();
-            return result == ConnectStatus.LOGGED_IN;
+            boolean success = result == ConnectStatus.LOGGED_IN;
+            System.out.println("Asynchronous was a success " + success);
+            if (success) {
+                updateProgress(1, 1);
+            } else {
+                updateProgress(0, 1);
+            }
+            return success;
         }
 
         @Override
         protected void succeeded() {
             super.succeeded();
+            System.out.println("Done");
             updateMessage("Done!");
         }
 
         @Override
         protected void cancelled() {
             super.cancelled();
+            System.out.println("Cancelled");
             updateMessage("Cancelled!");
         }
 
         @Override
         protected void failed() {
             super.failed();
+            System.out.println("Failed");
             updateMessage("Failed!");
         }
     };
@@ -78,7 +120,35 @@ public class XmppConnector {
      * be called before this.
      */
     public void connectAndLoginAsync() {
-        System.out.println("Login using user | password : " + user + " | " + pw);
+        connectLoginTask.setOnSucceeded(new EventHandler<WorkerStateEvent>() {
+            @Override
+            public void handle(WorkerStateEvent t) {
+                // This handler will be called if Task succesfully executed login code
+                // disregarding result of login operation
+
+                // and here we act according to result of login code
+                if (connectLoginTask.getValue()) {
+                    System.out.println("Successful login");
+                    // xmppConnectStatus.setValue(ConnectStatus.LOGGED_IN);
+                    xmppHost.setValue(conn.getHost());
+                    xmppPort.setValue(conn.getPort());
+                    xmppUser.setValue(conn.getUser());
+                    xmppContactCount.setValue(getOnlineUserNames().size());
+                } else {
+                    System.out.println("Invalid login");
+                }
+
+            }
+        });
+        connectLoginTask.setOnFailed(new EventHandler<WorkerStateEvent>() {
+            @Override
+            public void handle(WorkerStateEvent t) {
+                // This handler will be called if exception occured during your task execution
+                // E.g. network or db connection exceptions
+                System.out.println("Connection error.");
+            }
+        });
+
         new Thread(connectLoginTask).start();
     }
 
@@ -93,6 +163,7 @@ public class XmppConnector {
      */
     public ConnectStatus connectAndLoginSync() {
         try {
+            System.out.println("Connecting with host | port : " + host + " | " + port);
             connect(host, port);
         } catch (XMPPException e) {
             System.err.println("Could not connect to " + host + "through port " + port);
@@ -101,6 +172,7 @@ public class XmppConnector {
         }
 
         try {
+            System.out.println("Login using user : " + user);
             login(user, pw);
         } catch (XMPPException e) {
             System.err.println("Could not connect to " + host + "through port " + port + " as user " + user);
@@ -117,8 +189,6 @@ public class XmppConnector {
 
         conn = new XMPPConnection(config);
         conn.connect();
-
-        this.host = conn.getHost();
 
         chatManager = conn.getChatManager();
         chatManager.addChatListener(new ChatManagerListener() {
@@ -145,11 +215,6 @@ public class XmppConnector {
         // You have to put this code before you login
         // SASLAuthentication.supportSASLMechanism("PLAIN", 0);
         conn.login(user, password);
-        this.user = conn.getUser();
-    }
-
-    public ObservableValue<ConnectStatus> getXmppConnectStatus() {
-        return xmppConnectStatus;
     }
 
     /**
@@ -165,14 +230,6 @@ public class XmppConnector {
         this.port = port;
         this.user = user;
         this.pw = password;
-    }
-
-    public String getHost() {
-        return host;
-    }
-
-    public String getUser() {
-        return user;
     }
 
     public void doStuff() {

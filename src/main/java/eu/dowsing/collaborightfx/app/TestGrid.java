@@ -6,7 +6,6 @@ import java.util.prefs.InvalidPreferencesFormatException;
 import java.util.prefs.Preferences;
 
 import javafx.application.Application;
-import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
@@ -19,6 +18,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ColorPicker;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.Control;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleButton;
@@ -33,10 +33,12 @@ import javafx.stage.Stage;
 import org.controlsfx.control.ButtonBar;
 import org.controlsfx.control.ButtonBar.ButtonType;
 import org.controlsfx.control.MasterDetailPane;
+import org.controlsfx.control.NotificationPane;
 import org.controlsfx.control.PopOver;
 import org.controlsfx.control.SegmentedButton;
 import org.jivesoftware.smack.XMPPException;
 
+import eu.dowsing.collaborightfx.app.xmpp.OnChangeUpdateTextListener;
 import eu.dowsing.collaborightfx.app.xmpp.XmppConnector;
 import eu.dowsing.collaborightfx.app.xmpp.XmppConnector.ConnectStatus;
 import eu.dowsing.collaborightfx.model.painting.Sketch;
@@ -44,6 +46,8 @@ import eu.dowsing.collaborightfx.view.painting.SketchView;
 import eu.dowsing.collaborightfx.view.painting.ToggleButtonEventHandler;
 
 public class TestGrid extends Application {
+
+    private final XmppConnector jabber = new XmppConnector();
 
     private Text upperListLabel = new Text("Upper");
     private Text bottomListLabel = new Text("Lower");
@@ -72,35 +76,46 @@ public class TestGrid extends Application {
     private ColorPicker strokePicker = new ColorPicker();;
 
     private Button bHideShow = new Button("Hide");
+
+    /* ***
+     * Xmpp User Details
+     */
     private Button bUser = new Button("User");
-    private Text lUser = new Text("User");
+    private Text lXConnected = new Text("...");
+    private Text lXUser = new Text("User");
+    private Text lXHost = new Text("Host");
+    private Text lXPort = new Text("Port");
+    private Text lXContacts = new Text("Contacts");
 
     private Color strokeColor;
 
-    ToggleButton tbDraw = new ToggleButton("Draw");
-    ToggleButton tbText = new ToggleButton("Text");
-    ToggleButton tbSelect = new ToggleButton("Select");
-    SegmentedButton toolButtons = new SegmentedButton(tbDraw, tbText, tbSelect);
+    private ToggleButton tbDraw = new ToggleButton("Draw");
+    private ToggleButton tbText = new ToggleButton("Text");
+    private ToggleButton tbSelect = new ToggleButton("Select");
+    private SegmentedButton toolButtons = new SegmentedButton(tbDraw, tbText, tbSelect);
 
     private ToggleButton btPartners = new ToggleButton("Current");
     private ToggleButton btContacts = new ToggleButton("Contacts");
     private ToggleButton btSketches = new ToggleButton("Paintings");
     private SegmentedButton listButtons = new SegmentedButton(btPartners, btContacts, btSketches);
 
+    private NotificationPane notificationPane;
+
     @Override
     public void start(Stage primaryStage) {
         int width = 800;
         int height = 800;
-        Pane pane = createAndInitUI(width, height);
+        Control pane = createAndInitUI(width, height);
+        initXmpp();
 
         final Scene scene = new Scene(pane, width, height);
         primaryStage.setScene(scene);
         primaryStage.show();
 
-        // testJabber();
+        xmppConnectLogin();
     }
 
-    private Pane createAndInitUI(double maxWdith, double maxHeight) {
+    private Control createAndInitUI(double maxWdith, double maxHeight) {
         /* **********************
          * Load Painting
          */
@@ -139,33 +154,24 @@ public class TestGrid extends Application {
         contentBox.setDetailSide(Side.RIGHT);
         contentBox.setShowDetailNode(true);
 
+        // finally
         main.getChildren().addAll(controlBox, contentBox);
 
-        strokePicker.setValue(strokeColor);
         /* **********************
          * Fill layout
          */
         // control
+        strokePicker.setValue(strokeColor);
         controlBox.setCenter(new HBox(toolButtons, strokePicker, lineWidthCombo));
         tbDraw.setSelected(true);
         controlBox.setRight(new HBox(bUser, bHideShow));
         ButtonBar.setType(bHideShow, ButtonType.RIGHT);
 
-        userDetails.getChildren().add(lUser);
+        userDetails.getChildren().addAll(lXConnected, lXHost, lXPort, lXUser, lXContacts);
+        userDetails.setStyle("-fx-padding: 10 10 10 10;");
         final PopOver userPop = new PopOver(userDetails);
         userPop.setArrowLocation(PopOver.ArrowLocation.TOP_CENTER);
         userPop.setDetachable(false);
-        bUser.setOnAction(new EventHandler<ActionEvent>() {
-            @Override
-            public void handle(ActionEvent arg0) {
-                if (userPop.isShowing()) {
-                    userPop.hide();
-                } else {
-                    Point2D l = bUser.localToScreen(0, 0);
-                    userPop.show(bUser, l.getX() + bUser.getWidth() / 2, l.getY() + bUser.getHeight() * 2);
-                }
-            }
-        });
 
         // canvas
         sketchBox.getChildren().addAll(sketch);
@@ -186,6 +192,18 @@ public class TestGrid extends Application {
                 .addHide(bottomList, bottomListLabel).addShow(messageBox));
         btSketches.setOnAction(new ToggleButtonEventHandler<>(upperList, sketchData, upperListLabel, "Sketches")
                 .addHide(bottomList, bottomListLabel).addHide(messageBox));
+
+        bUser.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent arg0) {
+                if (userPop.isShowing()) {
+                    userPop.hide();
+                } else {
+                    Point2D l = bUser.localToScreen(0, 0);
+                    userPop.show(bUser, l.getX() + bUser.getWidth() / 2, l.getY() + bUser.getHeight() * 2);
+                }
+            }
+        });
 
         bHideShow.setOnAction(new EventHandler<ActionEvent>() {
             @Override
@@ -221,25 +239,58 @@ public class TestGrid extends Application {
             }
         });
 
-        return main;
+        notificationPane = new NotificationPane(main);
+        return notificationPane;
     }
 
-    private void updateUser(final String text) {
-        Platform.runLater(new Runnable() {
+    private void initXmpp() {
+        jabber.getXmppConnectStatus().addListener(new ChangeListener<ConnectStatus>() {
 
             @Override
-            public void run() {
-                // accountUser.setText(text);
+            public void changed(ObservableValue<? extends ConnectStatus> observable, ConnectStatus oldValue,
+                    ConnectStatus newValue) {
+                System.out.println("Connection status was: " + oldValue + " and is now: " + newValue);
+                if (newValue == ConnectStatus.LOGGED_IN) {
+                    // testXmppMessage(jabber);
+                    notificationPane.setText("Logged in");
+                    notificationPane.show();
+                }
             }
         });
+        jabber.getXmppConnectStatus().addListener(
+                new OnChangeUpdateTextListener<>("Connected:", "").setLables(lXConnected));
+        jabber.getXmppHost().addListener(new OnChangeUpdateTextListener<>("Host:", "").setLables(lXHost));
+        jabber.getXmppPort().addListener(new OnChangeUpdateTextListener<>("Port:", "").setLables(lXPort));
+        jabber.getXmppUser().addListener(
+                new OnChangeUpdateTextListener<>("User:", "").setButtons(bUser).setLables(lXUser));
+        jabber.getXmppContactCount().addListener(
+                new OnChangeUpdateTextListener<>("Contacts:", "").setLables(lXContacts));
+
     }
 
-    private void testJabberMessage(XmppConnector jabber) {
+    private void xmppConnectLogin() {
+
+        Preferences p = PreferenceTest.getPreferences();
+        String host = p.get(PreferenceTest.JABBER_HOST, PreferenceTest.JABBER_HOST_DEFAULT);
+        int port = p.getInt(PreferenceTest.JABBER_PORT, PreferenceTest.JABBER_PORT_DEFAULT);
+        String user = p.get(PreferenceTest.JABBER_USER, PreferenceTest.JABBER_USER_DEFAULT);
+        String pw = p.get(PreferenceTest.JABBER_PASSWORD, PreferenceTest.JABBER_PASSWORD_DEFAULT);
+
+        if (TestGrid.xmppArguments.isValid()) {
+            host = TestGrid.xmppArguments.host;
+            port = TestGrid.xmppArguments.port;
+            user = TestGrid.xmppArguments.user;
+            pw = TestGrid.xmppArguments.pw;
+        }
+
+        jabber.setConnectionData(host, port, user, pw);
+        jabber.connectAndLoginAsync();
+    }
+
+    private void testXmppMessage(XmppConnector jabber) {
         System.out.println("Test jabber messaging");
         try {
-            updateUser("Connecting...");
-            jabber.connectAndLoginAsync();
-            updateUser("Logged in as " + jabber.getUser() + " on " + jabber.getHost());
+            // jabber.connectAndLoginAsync();
             jabber.doStuff();
             System.out.println("Found " + jabber.getEntryCount() + " buddy entries");
             contactData.setAll(jabber.getOnlineUserNames());
@@ -256,37 +307,6 @@ public class TestGrid extends Application {
             System.out.println("Disconnecting jabber");
             jabber.disconnect();
         }
-    }
-
-    private void testJabber() {
-
-        Preferences p = PreferenceTest.getPreferences();
-        String host = p.get(PreferenceTest.JABBER_HOST, PreferenceTest.JABBER_HOST_DEFAULT);
-        int port = p.getInt(PreferenceTest.JABBER_PORT, PreferenceTest.JABBER_PORT_DEFAULT);
-        String user = p.get(PreferenceTest.JABBER_USER, PreferenceTest.JABBER_USER_DEFAULT);
-        String pw = p.get(PreferenceTest.JABBER_PASSWORD, PreferenceTest.JABBER_PASSWORD_DEFAULT);
-
-        if (TestGrid.xmppArguments.isValid()) {
-            host = TestGrid.xmppArguments.host;
-            port = TestGrid.xmppArguments.port;
-            user = TestGrid.xmppArguments.user;
-            pw = TestGrid.xmppArguments.pw;
-        }
-
-        final XmppConnector jabber = new XmppConnector();
-        jabber.setConnectionData(host, port, user, pw);
-        jabber.getXmppConnectStatus().addListener(new ChangeListener<ConnectStatus>() {
-
-            @Override
-            public void changed(ObservableValue<? extends ConnectStatus> observable, ConnectStatus oldValue,
-                    ConnectStatus newValue) {
-                System.out.println("Connection status was: " + oldValue + " and is now: " + newValue);
-                if (newValue == ConnectStatus.LOGGED_IN) {
-                    testJabberMessage(jabber);
-                }
-            }
-        });
-        jabber.connectAndLoginAsync();
     }
 
     public static void main(String[] args) {
