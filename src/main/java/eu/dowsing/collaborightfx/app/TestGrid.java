@@ -13,13 +13,16 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
+import javafx.geometry.Point2D;
+import javafx.geometry.Side;
 import javafx.scene.Scene;
+import javafx.scene.control.Button;
 import javafx.scene.control.ColorPicker;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ListView;
-import javafx.scene.control.Toggle;
+import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleButton;
-import javafx.scene.control.ToggleGroup;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
@@ -27,138 +30,196 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 
+import org.controlsfx.control.ButtonBar;
+import org.controlsfx.control.ButtonBar.ButtonType;
+import org.controlsfx.control.MasterDetailPane;
+import org.controlsfx.control.PopOver;
+import org.controlsfx.control.SegmentedButton;
 import org.jivesoftware.smack.XMPPException;
 
 import eu.dowsing.collaborightfx.app.xmpp.XmppConnector;
 import eu.dowsing.collaborightfx.app.xmpp.XmppConnector.ConnectStatus;
-import eu.dowsing.collaborightfx.model.painting.Painting;
-import eu.dowsing.collaborightfx.view.painting.PaintingView;
+import eu.dowsing.collaborightfx.model.painting.Sketch;
+import eu.dowsing.collaborightfx.view.painting.SketchView;
+import eu.dowsing.collaborightfx.view.painting.ToggleButtonEventHandler;
 
 public class TestGrid extends Application {
 
-    private ListView<String> usersList;
-    private ListView<String> messageList;
-    private ObservableList<String> userData = FXCollections.observableArrayList("Richard", "Rogers");
-    private ObservableList<String> messageData = FXCollections.observableArrayList("Hello", "You");
+    private Text upperListLabel = new Text("Upper");
+    private Text bottomListLabel = new Text("Lower");
+    private ListView<String> upperList = new ListView<>();
+    private ListView<String> bottomList = new ListView<>();
+    private TextField messageField = new TextField();
+    private Button messageSend = new Button("Send");
+
+    /** Xmpp users. **/
+    private ObservableList<String> contactData = FXCollections.observableArrayList("User1", "User2");
+    /** Sketch partners. **/
+    private ObservableList<String> partnersData = FXCollections.observableArrayList("Partner1", "Partner2");
+    private ObservableList<String> contactMessageData = FXCollections.observableArrayList("Message1", "Message2");
+    private ObservableList<String> partnerMessageData = FXCollections.observableArrayList("PartnerMessage1",
+            "PartnerMessage2");
+    /** All sketches that can be loaded. **/
+    private ObservableList<String> sketchData = FXCollections.observableArrayList("P1", "P2");
 
     private ObservableList<Integer> lineWidthOptions = FXCollections.observableArrayList(1, 2, 5, 10);
-
-    private ListView<String> paintingUserList;
-    private ObservableList<String> paintingUserData = FXCollections.observableArrayList("PaintingPartner1",
-            "PaintingPartner2");
-
     private ComboBox<Integer> lineWidthCombo = new ComboBox<>(lineWidthOptions);
 
-    private Text accountUser;
-    private PaintingView canvas;
+    private SketchView sketch;
 
     private static final String lastPainting = "res/painting/current.xml";
 
-    private ColorPicker strokePicker;
+    private ColorPicker strokePicker = new ColorPicker();;
+
+    private Button bHideShow = new Button("Hide");
+    private Button bUser = new Button("User");
+    private Text lUser = new Text("User");
 
     private Color strokeColor;
 
-    final ToggleGroup toolGroup = new ToggleGroup();
     ToggleButton tbDraw = new ToggleButton("Draw");
     ToggleButton tbText = new ToggleButton("Text");
     ToggleButton tbSelect = new ToggleButton("Select");
+    SegmentedButton toolButtons = new SegmentedButton(tbDraw, tbText, tbSelect);
+
+    private ToggleButton btPartners = new ToggleButton("Current");
+    private ToggleButton btContacts = new ToggleButton("Contacts");
+    private ToggleButton btSketches = new ToggleButton("Paintings");
+    private SegmentedButton listButtons = new SegmentedButton(btPartners, btContacts, btSketches);
 
     @Override
     public void start(Stage primaryStage) {
-        Pane pane = createAndInitUI();
+        int width = 800;
+        int height = 800;
+        Pane pane = createAndInitUI(width, height);
 
-        final Scene scene = new Scene(pane, 800, 800);
+        final Scene scene = new Scene(pane, width, height);
         primaryStage.setScene(scene);
         primaryStage.show();
-
-        // TODO implement graphs with JUNG, JFreeChart or JGraphX?
 
         // testJabber();
     }
 
-    private Pane createAndInitUI() {
+    private Pane createAndInitUI(double maxWdith, double maxHeight) {
         /* **********************
-         * Create content
+         * Load Painting
          */
-        // create drawing canvas
-        Painting painting = null;
+        Sketch painting = null;
         try {
-            painting = Painting.load(lastPainting);
-            canvas = new PaintingView(painting, 500, 600);
-            strokeColor = canvas.getFillColor();
+            painting = Sketch.load(lastPainting);
+            sketch = new SketchView(painting, maxWdith, 600);
+            strokeColor = sketch.getFillColor();
         } catch (Exception e) {
             System.err.println("Could not load initial painting");
             e.printStackTrace();
         }
 
-        // create control
-        HBox control = new HBox();
-        accountUser = new Text("UserAccount");
-        control.getChildren().add(accountUser);
-
-        // create user list
-        usersList = new ListView<>();
-        usersList.setItems(userData);
-
-        // create message list
-        messageList = new ListView<>();
-        messageList.setItems(messageData);
-
-        // create painting list
-        paintingUserList = new ListView<>();
-        paintingUserList.setItems(paintingUserData);
-
-        // create color picker for fill
-        strokePicker = new ColorPicker();
-        strokePicker.setValue(strokeColor);
-        strokePicker.setOnAction(new EventHandler<ActionEvent>() {
-            public void handle(ActionEvent t) {
-                strokeColor = strokePicker.getValue();
-                canvas.setStrokeColor(strokeColor);
-            }
-        });
-
-        // create lineWidth picker
-        lineWidthCombo.setOnAction(new EventHandler<ActionEvent>() {
-            @Override
-            public void handle(ActionEvent arg0) {
-                canvas.setLineWidth(lineWidthCombo.getValue());
-            }
-        });
-
-        // create drawing tool selector
-        tbDraw.setToggleGroup(toolGroup);
-        tbDraw.setSelected(true);
-        tbText.setToggleGroup(toolGroup);
-        tbSelect.setToggleGroup(toolGroup);
-        toolGroup.selectedToggleProperty().addListener(new ChangeListener<Toggle>() {
-            public void changed(ObservableValue<? extends Toggle> ov, Toggle toggle, Toggle new_toggle) {
-                // TODO
-            }
-        });
-
         /* **********************
          * Create layout
          */
+        // main
         Pane main = new VBox();
-        Pane headerBox = new HBox();
-        Pane messageBox = new VBox();
-        Pane middleBox = new HBox();
-        main.getChildren().addAll(headerBox, middleBox);
 
-        Pane paintingBox = new VBox();
-        Pane canvasBox = new VBox();
-        Pane userBox = new VBox();
-        middleBox.getChildren().addAll(paintingBox, userBox);
-        paintingBox.getChildren().addAll(canvasBox, messageBox);
+        // control
+        BorderPane controlBox = new BorderPane();
+        Pane userDetails = new VBox();
+
+        // canvas
+        Pane sketchBox = new VBox();
+
+        // details
+        Pane detailBox = new VBox();
+        Pane listBox = new VBox();
+        Pane messageBox = new HBox();
+
+        // content
+        final MasterDetailPane contentBox = new MasterDetailPane();
+        contentBox.setMasterNode(sketchBox);
+        contentBox.setDetailNode(detailBox);
+        contentBox.setDetailSide(Side.RIGHT);
+        contentBox.setShowDetailNode(true);
+
+        main.getChildren().addAll(controlBox, contentBox);
+
+        strokePicker.setValue(strokeColor);
+        /* **********************
+         * Fill layout
+         */
+        // control
+        controlBox.setCenter(new HBox(toolButtons, strokePicker, lineWidthCombo));
+        tbDraw.setSelected(true);
+        controlBox.setRight(new HBox(bUser, bHideShow));
+        ButtonBar.setType(bHideShow, ButtonType.RIGHT);
+
+        userDetails.getChildren().add(lUser);
+        final PopOver userPop = new PopOver(userDetails);
+        userPop.setArrowLocation(PopOver.ArrowLocation.TOP_CENTER);
+        userPop.setDetachable(false);
+        bUser.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent arg0) {
+                if (userPop.isShowing()) {
+                    userPop.hide();
+                } else {
+                    Point2D l = bUser.localToScreen(0, 0);
+                    userPop.show(bUser, l.getX() + bUser.getWidth() / 2, l.getY() + bUser.getHeight() * 2);
+                }
+            }
+        });
+
+        // canvas
+        sketchBox.getChildren().addAll(sketch);
+
+        // details
+        detailBox.getChildren().addAll(listButtons, listBox);
+        listBox.getChildren().addAll(upperListLabel, upperList, bottomListLabel, bottomList, messageBox);
+        messageBox.getChildren().addAll(messageField, messageSend);
 
         /* **********************
-         * Add content to layout
+         * Create Control
          */
-        headerBox.getChildren().addAll(new Text("Header"), tbDraw, tbText, tbSelect, strokePicker, lineWidthCombo);
-        userBox.getChildren().addAll(control, paintingUserList, usersList);
-        messageBox.getChildren().addAll(messageList);
-        canvasBox.getChildren().addAll(canvas);
+        btPartners.setOnAction(new ToggleButtonEventHandler<>(upperList, partnersData, upperListLabel, "Partners")
+                .addListAndData(bottomList, partnerMessageData, bottomListLabel, "PartnerMessages")
+                .setSelected(btPartners).addHide(messageBox));
+        btContacts.setOnAction(new ToggleButtonEventHandler<>(upperList, contactData, upperListLabel, "Contacts")
+                .addListAndData(bottomList, contactMessageData, bottomListLabel, "ContactMessages")
+                .addHide(bottomList, bottomListLabel).addShow(messageBox));
+        btSketches.setOnAction(new ToggleButtonEventHandler<>(upperList, sketchData, upperListLabel, "Sketches")
+                .addHide(bottomList, bottomListLabel).addHide(messageBox));
+
+        bHideShow.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent arg0) {
+                // toggle box visibility
+                contentBox.showDetailNodeProperty().setValue(!contentBox.showDetailNodeProperty().getValue());
+            }
+        });
+        contentBox.showDetailNodeProperty().addListener(new ChangeListener<Boolean>() {
+
+            @Override
+            public void changed(ObservableValue<? extends Boolean> observ, Boolean oldVal, Boolean isShown) {
+                if (isShown) {
+                    bHideShow.setText("Hide");
+                } else {
+                    bHideShow.setText("Show");
+                }
+            }
+
+        });
+        strokePicker.setOnAction(new EventHandler<ActionEvent>() {
+            public void handle(ActionEvent t) {
+                strokeColor = strokePicker.getValue();
+                sketch.setStrokeColor(strokeColor);
+            }
+        });
+
+        // lineWidth picker
+        lineWidthCombo.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent arg0) {
+                sketch.setLineWidth(lineWidthCombo.getValue());
+            }
+        });
 
         return main;
     }
@@ -168,7 +229,7 @@ public class TestGrid extends Application {
 
             @Override
             public void run() {
-                accountUser.setText(text);
+                // accountUser.setText(text);
             }
         });
     }
@@ -181,7 +242,7 @@ public class TestGrid extends Application {
             updateUser("Logged in as " + jabber.getUser() + " on " + jabber.getHost());
             jabber.doStuff();
             System.out.println("Found " + jabber.getEntryCount() + " buddy entries");
-            userData.setAll(jabber.getOnlineUserNames());
+            contactData.setAll(jabber.getOnlineUserNames());
             // jabber.createEntry("RichardG@chat.maibornwolff.de", "Richard");
             jabber.sendMessage("Ping", "fyinconvenience@xabber.de");
             System.out.println("Launching GUI");

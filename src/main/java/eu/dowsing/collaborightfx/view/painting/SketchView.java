@@ -11,7 +11,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.ArcType;
 import eu.dowsing.collaborightfx.model.RgbaColor;
-import eu.dowsing.collaborightfx.model.painting.Painting;
+import eu.dowsing.collaborightfx.model.painting.Sketch;
 import eu.dowsing.collaborightfx.model.painting.PaintingMover;
 import eu.dowsing.collaborightfx.model.shapes.Shape;
 import eu.dowsing.collaborightfx.view.shapes.ShapeView;
@@ -22,7 +22,7 @@ import eu.dowsing.collaborightfx.view.shapes.ShapeView;
  * @author richardg
  * 
  */
-public class PaintingView extends Canvas {
+public class SketchView extends Canvas {
 
     private Canvas canvas = this;
     private GraphicsContext gc;
@@ -31,14 +31,14 @@ public class PaintingView extends Canvas {
 
     private List<ShapeView> shapes = new LinkedList<>();
 
-    private Painting painting;
+    private Sketch painting;
 
-    public PaintingView(Painting painting) {
+    public SketchView(Sketch painting) {
         super();
         init(painting);
     }
 
-    public PaintingView(Painting painting, double width, double heigth) {
+    public SketchView(Sketch painting, double width, double heigth) {
         super(width, heigth);
         init(painting);
     }
@@ -67,7 +67,7 @@ public class PaintingView extends Canvas {
         this.painting.setLineWidth(lineWidth);
     }
 
-    private void init(Painting painting) {
+    private void init(Sketch painting) {
         this.painting = painting;
         this.gc = canvas.getGraphicsContext2D();
         initControl();

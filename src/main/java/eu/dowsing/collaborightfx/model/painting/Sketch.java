@@ -19,7 +19,7 @@ import eu.dowsing.collaborightfx.model.shapes.Shape;
  * @author richardg
  * 
  */
-public class Painting {
+public class Sketch {
 
     private String defaultLocation = "res/painting/defaultPainting.xml";
 
@@ -45,7 +45,7 @@ public class Painting {
 
     private double lineWidth = 5;
 
-    public Painting() {
+    public Sketch() {
         this.shapes = new LinkedList<>();
     }
 
@@ -93,7 +93,7 @@ public class Painting {
      * 
      * @param shapes
      */
-    public Painting(List<Shape> shapes) {
+    public Sketch(List<Shape> shapes) {
         this.shapes = shapes;
     }
 
@@ -102,7 +102,7 @@ public class Painting {
      * 
      * @param shapes
      */
-    public Painting(List<Shape> shapes, RgbaColor background, User owner, long creationTime, long modificationTime) {
+    public Sketch(List<Shape> shapes, RgbaColor background, User owner, long creationTime, long modificationTime) {
         this.shapes = shapes;
         this.bg = background;
         // this.owner = owner;
@@ -193,18 +193,18 @@ public class Painting {
      * @return
      * @throws Exception
      */
-    public static Painting load(String filePath) throws Exception {
+    public static Sketch load(String filePath) throws Exception {
         Serializer serializer = new Persister();
         File source = new File(filePath);
         if (source.exists()) {
             System.out.println("Painting load: File " + filePath + " exists");
-            Painting painting = serializer.read(Painting.class, source);
+            Sketch painting = serializer.read(Sketch.class, source);
             painting.defaultLocation = filePath;
             return painting;
         } else {
             System.out.println("Painting load: File " + filePath + " does not exist");
             source.createNewFile();
-            Painting painting = new Painting();
+            Sketch painting = new Sketch();
             painting.defaultLocation = filePath;
             painting.save();
             return painting;
