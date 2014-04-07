@@ -57,7 +57,7 @@ public class TestGrid extends Application {
     private Button messageSend = new Button("Send");
 
     /** Xmpp users. **/
-    private ObservableList<String> contactData = FXCollections.observableArrayList("User1", "User2");
+    // private ObservableList<String> contactData = FXCollections.observableArrayList("User1", "User2");
     /** Sketch partners. **/
     private ObservableList<String> partnersData = FXCollections.observableArrayList("Partner1", "Partner2");
     private ObservableList<String> contactMessageData = FXCollections.observableArrayList("Message1", "Message2");
@@ -187,8 +187,8 @@ public class TestGrid extends Application {
         btPartners.setOnAction(new ToggleButtonEventHandler<>(upperList, partnersData, upperListLabel, "Partners")
                 .addListAndData(bottomList, partnerMessageData, bottomListLabel, "PartnerMessages")
                 .setSelected(btPartners).addHide(messageBox));
-        btContacts.setOnAction(new ToggleButtonEventHandler<>(upperList, contactData, upperListLabel, "Contacts")
-                .addListAndData(bottomList, contactMessageData, bottomListLabel, "ContactMessages")
+        btContacts.setOnAction(new ToggleButtonEventHandler<>(upperList, jabber.getXmppContacts(), upperListLabel,
+                "Contacts").addListAndData(bottomList, contactMessageData, bottomListLabel, "ContactMessages")
                 .addHide(bottomList, bottomListLabel).addShow(messageBox));
         btSketches.setOnAction(new ToggleButtonEventHandler<>(upperList, sketchData, upperListLabel, "Sketches")
                 .addHide(bottomList, bottomListLabel).addHide(messageBox));
@@ -293,7 +293,6 @@ public class TestGrid extends Application {
             // jabber.connectAndLoginAsync();
             jabber.doStuff();
             System.out.println("Found " + jabber.getEntryCount() + " buddy entries");
-            contactData.setAll(jabber.getOnlineUserNames());
             // jabber.createEntry("RichardG@chat.maibornwolff.de", "Richard");
             jabber.sendMessage("Ping", "fyinconvenience@xabber.de");
             System.out.println("Launching GUI");

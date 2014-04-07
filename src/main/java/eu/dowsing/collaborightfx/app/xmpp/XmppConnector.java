@@ -9,6 +9,8 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringPropertyBase;
 import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
@@ -55,6 +57,8 @@ public class XmppConnector {
     private IntegerPropertyBase xmppPort = new SimpleIntegerProperty(0);
     private IntegerPropertyBase xmppContactCount = new SimpleIntegerProperty(0);
 
+    private ObservableList<String> xmppContacts = FXCollections.observableArrayList();
+
     public StringPropertyBase getXmppHost() {
         return xmppHost;
     }
@@ -73,6 +77,10 @@ public class XmppConnector {
 
     public ObservableValue<ConnectStatus> getXmppConnectStatus() {
         return xmppConnectStatus;
+    }
+
+    public ObservableList<String> getXmppContacts() {
+        return xmppContacts;
     }
 
     private Task<Boolean> connectLoginTask = new Task<Boolean>() {
@@ -134,6 +142,7 @@ public class XmppConnector {
                     xmppPort.setValue(conn.getPort());
                     xmppUser.setValue(conn.getUser());
                     xmppContactCount.setValue(getOnlineUserNames().size());
+                    xmppContacts.setAll(getOnlineUserNames());
                 } else {
                     System.out.println("Invalid login");
                 }
