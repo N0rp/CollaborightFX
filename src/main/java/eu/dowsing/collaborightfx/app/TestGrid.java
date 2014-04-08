@@ -19,16 +19,23 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ColorPicker;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Control;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
+import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleButton;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
+import javafx.util.Callback;
 
 import org.controlsfx.control.ButtonBar;
 import org.controlsfx.control.ButtonBar.ButtonType;
@@ -36,35 +43,31 @@ import org.controlsfx.control.MasterDetailPane;
 import org.controlsfx.control.NotificationPane;
 import org.controlsfx.control.PopOver;
 import org.controlsfx.control.SegmentedButton;
+import org.jivesoftware.smack.RosterEntry;
 import org.jivesoftware.smack.XMPPException;
+import org.jivesoftware.smack.packet.Message;
 
 import eu.dowsing.collaborightfx.app.xmpp.OnChangeUpdateTextListener;
 import eu.dowsing.collaborightfx.app.xmpp.XmppConnector;
 import eu.dowsing.collaborightfx.app.xmpp.XmppConnector.ConnectStatus;
 import eu.dowsing.collaborightfx.model.painting.Sketch;
+import eu.dowsing.collaborightfx.model.painting.SketchLoader;
 import eu.dowsing.collaborightfx.view.painting.SketchView;
 import eu.dowsing.collaborightfx.view.painting.ToggleButtonEventHandler;
 
 public class TestGrid extends Application {
 
+    private SketchLoader loader = new SketchLoader("res/sketch");
     private final XmppConnector jabber = new XmppConnector();
 
     private Text upperListLabel = new Text("Upper");
     private Text bottomListLabel = new Text("Lower");
-    private ListView<String> upperList = new ListView<>();
-    private ListView<String> bottomList = new ListView<>();
+
+    private ListView<String> sketchList = new ListView<>();
+    private ListView<RosterEntry> userList = new ListView<>();
+    private ListView<Message> messageList = new ListView<>();
     private TextField messageField = new TextField();
     private Button messageSend = new Button("Send");
-
-    /** Xmpp users. **/
-    // private ObservableList<String> contactData = FXCollections.observableArrayList("User1", "User2");
-    /** Sketch partners. **/
-    private ObservableList<String> partnersData = FXCollections.observableArrayList("Partner1", "Partner2");
-    private ObservableList<String> contactMessageData = FXCollections.observableArrayList("Message1", "Message2");
-    private ObservableList<String> partnerMessageData = FXCollections.observableArrayList("PartnerMessage1",
-            "PartnerMessage2");
-    /** All sketches that can be loaded. **/
-    private ObservableList<String> sketchData = FXCollections.observableArrayList("P1", "P2");
 
     private ObservableList<Integer> lineWidthOptions = FXCollections.observableArrayList(1, 2, 5, 10);
     private ComboBox<Integer> lineWidthCombo = new ComboBox<>(lineWidthOptions);
@@ -121,7 +124,8 @@ public class TestGrid extends Application {
          */
         Sketch painting = null;
         try {
-            painting = Sketch.load(lastPainting);
+            painting = loader.loadSketch(lastPainting, false);
+
             sketch = new SketchView(painting, maxWdith, 600);
             strokeColor = sketch.getFillColor();
         } catch (Exception e) {
@@ -145,7 +149,7 @@ public class TestGrid extends Application {
         // details
         Pane detailBox = new VBox();
         Pane listBox = new VBox();
-        Pane messageBox = new HBox();
+        final Pane messageBox = new HBox();
 
         // content
         final MasterDetailPane contentBox = new MasterDetailPane();
@@ -178,20 +182,23 @@ public class TestGrid extends Application {
 
         // details
         detailBox.getChildren().addAll(listButtons, listBox);
-        listBox.getChildren().addAll(upperListLabel, upperList, bottomListLabel, bottomList, messageBox);
+        listBox.getChildren().addAll(upperListLabel, userList, sketchList, bottomListLabel, messageList, messageBox);
         messageBox.getChildren().addAll(messageField, messageSend);
 
         /* **********************
          * Create Control
          */
-        btPartners.setOnAction(new ToggleButtonEventHandler<>(upperList, partnersData, upperListLabel, "Partners")
-                .addListAndData(bottomList, partnerMessageData, bottomListLabel, "PartnerMessages")
-                .setSelected(btPartners).addHide(messageBox));
-        btContacts.setOnAction(new ToggleButtonEventHandler<>(upperList, jabber.getXmppContacts(), upperListLabel,
-                "Contacts").addListAndData(bottomList, contactMessageData, bottomListLabel, "ContactMessages")
-                .addHide(bottomList, bottomListLabel).addShow(messageBox));
-        btSketches.setOnAction(new ToggleButtonEventHandler<>(upperList, sketchData, upperListLabel, "Sketches")
-                .addHide(bottomList, bottomListLabel).addHide(messageBox));
+        btPartners.setOnAction(new ToggleButtonEventHandler(userList, jabber.getXmppSktechPartnerContacts(),
+                upperListLabel, "Partners")
+                .addListAndData(messageList, jabber.getXmppSelectedPartnerChat(), bottomListLabel, "PartnerMessages")
+                .addHide(sketchList).setSelected(btPartners).addShow(messageBox));
+
+        btContacts.setOnAction(new ToggleButtonEventHandler(userList, jabber.getXmppOnlineContacts(), upperListLabel,
+                "Contacts").addListAndData(messageList, jabber.getXmppSelectedContactChat(), bottomListLabel,
+                "ContactMessages").addHide(sketchList, messageList, bottomListLabel, messageBox));
+
+        btSketches.setOnAction(new ToggleButtonEventHandler(sketchList, loader.getSketchFileNames(), upperListLabel,
+                "Sketches").addHide(userList, messageList, bottomListLabel, messageBox));
 
         bUser.setOnAction(new EventHandler<ActionEvent>() {
             @Override
@@ -239,8 +246,170 @@ public class TestGrid extends Application {
             }
         });
 
+        messageSend.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent ke) {
+                sendMessageToSelectedUser();
+            }
+        });
+        // set messages sender
+        messageField.setOnKeyPressed(new EventHandler<KeyEvent>() {
+            @Override
+            public void handle(KeyEvent ke) {
+                if (ke.getCode().equals(KeyCode.ENTER)) {
+                    sendMessageToSelectedUser();
+                }
+            }
+        });
+
+        // set list cell factories
+        userList.setCellFactory(new Callback<ListView<RosterEntry>, ListCell<RosterEntry>>() {
+            @Override
+            public ListCell<RosterEntry> call(ListView<RosterEntry> list) {
+                return new RosterEntryCell();
+            }
+        });
+
+        messageList.setCellFactory(new Callback<ListView<Message>, ListCell<Message>>() {
+            @Override
+            public ListCell<Message> call(ListView<Message> list) {
+                return new MessageCell(jabber);
+            }
+        });
+
+        userList.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
+        userList.getSelectionModel().selectedItemProperty().addListener(new ChangeListener<RosterEntry>() {
+            public void changed(ObservableValue<? extends RosterEntry> ov, RosterEntry oldVal, RosterEntry newVal) {
+                if (btPartners.isSelected()) {
+
+                } else if (btContacts.isSelected()) {
+                    if (newVal != null) {
+                        jabber.setSelectedContact(newVal.getName());
+                        bottomListLabel.setVisible(true);
+                        messageList.setVisible(true);
+                        messageBox.setVisible(true);
+                    } else {
+                        messageBox.setVisible(false);
+                    }
+                } else if (btSketches.isSelected()) {
+
+                }
+            }
+        });
+
         notificationPane = new NotificationPane(main);
         return notificationPane;
+    }
+
+    private void sendMessageToSelectedUser() {
+        String msg = messageField.getText();
+        if (msg.isEmpty()) {
+            return;
+        }
+
+        try {
+            sendMessageToSelectedUser(msg);
+
+        } catch (XMPPException e) {
+            System.err.println("Could not send message " + msg);
+            e.printStackTrace();
+        }
+        messageField.setText("");
+    }
+
+    private void sendMessageToSelectedUser(String message) throws XMPPException {
+        if (btPartners.isSelected()) {
+
+        } else if (btContacts.isSelected()) {
+            RosterEntry selected = userList.getSelectionModel().getSelectedItem();
+            if (selected != null) {
+                jabber.sendMessage(message, selected.getUser());
+            }
+        }
+    }
+
+    private static String getUser(String from) {
+        if (from != null && from.indexOf("@") > 0) {
+            String usr = from.substring(0, from.indexOf("@"));
+
+            return usr;
+        }
+
+        return null;
+    }
+
+    static class MessageCell extends ListCell<Message> {
+        private XmppConnector jabber;
+
+        private Text from = new Text();
+        private Text message = new Text();
+        private VBox box = new VBox(from, message);
+
+        public MessageCell(XmppConnector jabber) {
+            this.jabber = jabber;
+            init();
+        }
+
+        private void init() {
+            from.setFont(Font.font("Verdana", FontWeight.BOLD, from.getFont().getSize()));
+        }
+
+        private void clear() {
+            box.setStyle("");
+            from.setText("");
+            message.setText("");
+        }
+
+        @Override
+        public void updateItem(Message item, boolean empty) {
+            super.updateItem(item, empty);
+            if (item != null) {
+                if (item.getFrom().equals(jabber.getXmppUser().getValue())) {
+                    box.setStyle("-fx-background-color: #336699;");
+                } else {
+                    box.setStyle("-fx-background-color: #44aa99;");
+                }
+
+                String usr = getUser(item.getFrom());
+                from.setText(usr);
+                message.setText(item.getBody());
+
+                setGraphic(box);
+            } else {
+                clear();
+            }
+        }
+    }
+
+    static class RosterEntryCell extends ListCell<RosterEntry> {
+        private Text user = new Text();
+        private VBox box = new VBox(user);
+
+        public RosterEntryCell() {
+            init();
+        }
+
+        private void init() {
+
+        }
+
+        private void clear() {
+            box.setStyle("");
+            user.setText("");
+        }
+
+        @Override
+        public void updateItem(RosterEntry item, boolean empty) {
+            super.updateItem(item, empty);
+            if (getGraphic() == null) {
+                setGraphic(box);
+            }
+            if (item != null) {
+                user.setText(item.getName());
+            } else {
+                clear();
+            }
+        }
     }
 
     private void initXmpp() {
@@ -263,8 +432,6 @@ public class TestGrid extends Application {
         jabber.getXmppPort().addListener(new OnChangeUpdateTextListener<>("Port:", "").setLables(lXPort));
         jabber.getXmppUser().addListener(
                 new OnChangeUpdateTextListener<>("User:", "").setButtons(bUser).setLables(lXUser));
-        jabber.getXmppContactCount().addListener(
-                new OnChangeUpdateTextListener<>("Contacts:", "").setLables(lXContacts));
 
     }
 
@@ -285,14 +452,14 @@ public class TestGrid extends Application {
 
         jabber.setConnectionData(host, port, user, pw);
         jabber.connectAndLoginAsync();
+
     }
 
     private void testXmppMessage(XmppConnector jabber) {
         System.out.println("Test jabber messaging");
         try {
             // jabber.connectAndLoginAsync();
-            jabber.doStuff();
-            System.out.println("Found " + jabber.getEntryCount() + " buddy entries");
+            // jabber.doStuff();
             // jabber.createEntry("RichardG@chat.maibornwolff.de", "Richard");
             jabber.sendMessage("Ping", "fyinconvenience@xabber.de");
             System.out.println("Launching GUI");

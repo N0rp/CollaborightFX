@@ -1,7 +1,10 @@
 package eu.dowsing.collaborightfx.app.xmpp;
 
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import javafx.beans.property.IntegerPropertyBase;
 import javafx.beans.property.SimpleIntegerProperty;
@@ -23,9 +26,11 @@ import org.jivesoftware.smack.ConnectionConfiguration;
 import org.jivesoftware.smack.MessageListener;
 import org.jivesoftware.smack.Roster;
 import org.jivesoftware.smack.RosterEntry;
+import org.jivesoftware.smack.RosterListener;
 import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.packet.Message;
+import org.jivesoftware.smack.packet.Message.Type;
 import org.jivesoftware.smack.packet.Presence;
 
 /**
@@ -44,6 +49,12 @@ public class XmppConnector {
     private MessageListener messageListener;
 
     private Connection conn;
+    /**
+     * Roster of a user.The roster lets you keep track of the availability ("presence") of other users. A roster also
+     * allows you to organize users into groups such as "Friends" and "Co-workers". Other IM systems refer to the roster
+     * as the buddy list, contact list, etc.
+     */
+    private Roster roster;
 
     private String host;
     private int port;
@@ -55,9 +66,32 @@ public class XmppConnector {
     private StringPropertyBase xmppHost = new SimpleStringProperty("No Host");
     private StringPropertyBase xmppUser = new SimpleStringProperty("No User");
     private IntegerPropertyBase xmppPort = new SimpleIntegerProperty(0);
-    private IntegerPropertyBase xmppContactCount = new SimpleIntegerProperty(0);
 
-    private ObservableList<String> xmppContacts = FXCollections.observableArrayList();
+    /** Xmpp Contacts that are online. **/
+    private ObservableList<RosterEntry> xmppOnlineContacts = FXCollections.observableArrayList();
+    /** Messages for the **/
+    private ObservableList<Message> xmppSelectedContactChat = FXCollections.observableArrayList();
+
+    /** Xmpp Contacts that are online. **/
+    private ObservableList<RosterEntry> xmppSketchPartners = FXCollections.observableArrayList();
+    /** Messages for the **/
+    private ObservableList<Message> xmppSelectedPartnerChat = FXCollections.observableArrayList();
+
+    /** List of chat for each user. **/
+    private Map<String, Chat> user2Chat = new HashMap<>();
+    /** List of messages exchanged for each user. **/
+    private Map<String, List<Message>> user2Messages = new HashMap<>();
+
+    public void setSelectedContact(String contact) {
+        contact = getJID(user);
+        System.out.println("Selected Contact is " + user);
+
+        if (user2Messages.containsKey(contact)) {
+            xmppSelectedContactChat.setAll(user2Messages.get(contact));
+        } else {
+            xmppSelectedContactChat.clear();
+        }
+    }
 
     public StringPropertyBase getXmppHost() {
         return xmppHost;
@@ -71,16 +105,24 @@ public class XmppConnector {
         return xmppPort;
     }
 
-    public ObservableValue<Number> getXmppContactCount() {
-        return xmppContactCount;
-    }
-
     public ObservableValue<ConnectStatus> getXmppConnectStatus() {
         return xmppConnectStatus;
     }
 
-    public ObservableList<String> getXmppContacts() {
-        return xmppContacts;
+    public ObservableList<RosterEntry> getXmppOnlineContacts() {
+        return xmppOnlineContacts;
+    }
+
+    public ObservableList<Message> getXmppSelectedContactChat() {
+        return xmppSelectedContactChat;
+    }
+
+    public ObservableList<RosterEntry> getXmppSktechPartnerContacts() {
+        return xmppSketchPartners;
+    }
+
+    public ObservableList<Message> getXmppSelectedPartnerChat() {
+        return xmppSelectedPartnerChat;
     }
 
     private Task<Boolean> connectLoginTask = new Task<Boolean>() {
@@ -138,11 +180,10 @@ public class XmppConnector {
                 if (connectLoginTask.getValue()) {
                     System.out.println("Successful login");
                     // xmppConnectStatus.setValue(ConnectStatus.LOGGED_IN);
+
                     xmppHost.setValue(conn.getHost());
                     xmppPort.setValue(conn.getPort());
                     xmppUser.setValue(conn.getUser());
-                    xmppContactCount.setValue(getOnlineUserNames().size());
-                    xmppContacts.setAll(getOnlineUserNames());
                 } else {
                     System.out.println("Invalid login");
                 }
@@ -199,31 +240,20 @@ public class XmppConnector {
         conn = new XMPPConnection(config);
         conn.connect();
 
+        // add listeners
+        roster = conn.getRoster();
+        roster.addRosterListener(new MyRoosterListener());
+        // roster.setSubscriptionMode(SubscriptionMode.reject_all);
+
         chatManager = conn.getChatManager();
-        chatManager.addChatListener(new ChatManagerListener() {
-
-            @Override
-            public void chatCreated(Chat chat, boolean createdLocally) {
-                System.out.println("Chat was created with: " + chat.getParticipant());
-                try {
-                    chat.sendMessage("pong");
-                } catch (XMPPException e) {
-                    System.err.println("Cannot send message to chat");
-                    e.printStackTrace();
-                }
-
-                if (!createdLocally) {
-                    // add message listener
-                    chat.addMessageListener(new MyMessageListener());
-                }
-            }
-        });
+        chatManager.addChatListener(new MyChatListener());
     }
 
     private void login(String user, String password) throws XMPPException {
         // You have to put this code before you login
         // SASLAuthentication.supportSASLMechanism("PLAIN", 0);
         conn.login(user, password);
+        xmppOnlineContacts.setAll(getOnlineEntries(roster, roster.getEntries()));
     }
 
     /**
@@ -241,33 +271,29 @@ public class XmppConnector {
         this.pw = password;
     }
 
-    public void doStuff() {
-        Presence presence = new Presence(Presence.Type.available);
-        presence.setStatus("What's up everyone?");
-        conn.sendPacket(presence);
+    // public void doStuff() {
+    // Presence presence = new Presence(Presence.Type.available);
+    // presence.setStatus("What's up everyone?");
+    // conn.sendPacket(presence);
+    // }
+
+    public void sendMessage(String message, String jid) throws XMPPException {
+
+        System.out.println(String.format("Sending mesage '%1$s' to user %2$s", message, jid));
+        jid = getJID(jid);
+
+        Chat chat = getChat(jid);
+        Message msg = new Message(jid, Message.Type.chat);
+        msg.setBody(message);
+        chat.sendMessage(msg);
+        addMessage2ContactHistory(jid, msg);
     }
 
-    public void sendMessage(String message, String buddyJID) throws XMPPException {
-        System.out.println(String.format("Sending mesage '%1$s' to user %2$s", message, buddyJID));
-
-        Chat chat = chatManager.createChat(buddyJID, messageListener);
-        chat.sendMessage(message);
-    }
-
-    public int getEntryCount() {
-        return conn.getRoster().getEntries().size();
-    }
-
-    public List<String> getOnlineUserNames() {
-        List<String> names = new LinkedList<String>();
-        Roster roster = conn.getRoster();
-        for (RosterEntry entry : roster.getEntries()) {
-            System.out.println(String.format("Buddy:%1$s - Status:%2$s", entry.getName(), entry.getStatus()));
-            if (entry.getStatus() != null) {
-                names.add(entry.getUser());
-            }
+    private Chat getChat(String jid) {
+        if (!user2Chat.containsKey(jid)) {
+            user2Chat.put(jid, chatManager.createChat(jid, new MyMessageListener()));
         }
-        return names;
+        return user2Chat.get(jid);
     }
 
     public void createEntry(String user, String name) throws Exception {
@@ -277,11 +303,115 @@ public class XmppConnector {
         roster.createEntry(user, name, null);
         // RosterEntry entry = roster.getEntry(user);
         // return entry.getStatus().toString();
+
+    }
+
+    public void removeEntry(String user) throws XMPPException {
+        RosterEntry entry = roster.getEntry(user);
+        roster.removeEntry(entry);
     }
 
     public void disconnect() {
         if (conn != null) {
             conn.disconnect();
+        }
+    }
+
+    private boolean isOnline(Presence presence) {
+        return presence != null && presence.getType() == Presence.Type.available;
+    }
+
+    private String getJID(String from) {
+        if (from != null && from.indexOf("/") > 0) {
+            String jid = from.substring(0, from.indexOf("/"));
+
+            return jid;
+        }
+
+        return from;
+    }
+
+    private String getResource(String from) {
+        if (from != null && from.lastIndexOf("/") > 0) {
+            String resource = from.substring(from.lastIndexOf("/") + 1);
+
+            return resource;
+        }
+
+        return null;
+    }
+
+    class MyRoosterListener implements RosterListener {
+        @Override
+        public void presenceChanged(Presence presence) {
+            // presence of a user has changed
+            if (isOnline(presence)) {
+                // smack gives us not only the Jabber ID but also the resource
+                String from = presence.getFrom();
+                String jid = getJID(from);
+
+                RosterEntry entry = roster.getEntry(jid);
+
+                System.out.println("JID " + jid + " and User " + from + " is avaiable and has new status: "
+                        + presence.getStatus() + " to " + presence.getTo() + " and entry " + entry);
+
+                xmppOnlineContacts.add(entry);
+            } else {
+                System.out
+                        .println("User " + presence.getFrom() + " is not available but instead " + presence.getType());
+            }
+        }
+
+        @Override
+        public void entriesUpdated(Collection<String> addresses) {
+            // updates in roster for xmpp addresses
+            System.out.println("Addresses " + addresses + " have new updates");
+        }
+
+        @Override
+        public void entriesDeleted(Collection<String> addresses) {
+            // xmpp addresses deleted from roster
+            System.out.println("Addresses " + addresses + " deleted");
+        }
+
+        @Override
+        public void entriesAdded(Collection<String> addresses) {
+            // new xmpp addresses in roster
+            System.out.println("Addresses " + addresses + " added");
+        }
+    }
+
+    private Collection<RosterEntry> getOnlineEntries(Roster roster, Collection<RosterEntry> entries) {
+        Collection<RosterEntry> notOffline = new LinkedList<RosterEntry>();
+        for (RosterEntry entry : entries) {
+            Presence presence = roster.getPresence(entry.getUser());
+            if (isOnline(presence)) {
+                notOffline.add(entry);
+            }
+        }
+        return notOffline;
+    }
+
+    private void addMessage2ContactHistory(String jid, Message msg) {
+        if (!user2Messages.containsKey(jid)) {
+            ObservableList<Message> nouveau = FXCollections.observableArrayList();
+            user2Messages.put(jid, nouveau);
+        }
+        System.out.println("Adding message to history from " + jid + " with content: " + msg.getBody());
+        xmppSelectedContactChat.add(msg);
+        user2Messages.get(jid).add(msg);
+    }
+
+    class MyChatListener implements ChatManagerListener {
+        @Override
+        public void chatCreated(Chat chat, boolean createdLocally) {
+            String jid = getJID(chat.getParticipant());
+            System.out.println("ChatListener: Chat was created with: " + jid);
+
+            if (!createdLocally) {
+                // add message listener
+                chat.addMessageListener(new MyMessageListener());
+            }
         }
     }
 
@@ -291,8 +421,17 @@ public class XmppConnector {
         public void processMessage(Chat chat, Message message) {
             String from = message.getFrom();
             String body = message.getBody();
+            // body can very well be empty, f.ex. the 'user-is-typing' message is null
+            Type type = message.getType();
 
-            System.out.println(String.format("Received message '%1$s' from %2$s", body, from));
+            if (message != null) {
+                String fromJid = getJID(from);
+
+                System.out.println(String.format(
+                        "MyMessageListener: Received message '%1$s' from %2$s and JID %3$s with type %4$s", body, from,
+                        fromJid, type));
+                addMessage2ContactHistory(fromJid, message);
+            }
         }
     }
 }

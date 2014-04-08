@@ -18,17 +18,37 @@ import javafx.scene.text.Text;
  * 
  * @param <L>
  */
-public class ToggleButtonEventHandler<L> implements EventHandler<ActionEvent> {
+public class ToggleButtonEventHandler implements EventHandler<ActionEvent> {
 
-    private List<ListView<L>> list = new LinkedList<>();
-    private List<ObservableList<L>> data = new LinkedList<>();
-    private List<Text> labels = new LinkedList<>();
-    private List<String> labelText = new LinkedList<>();
+    private class ListDataTuple<L> {
 
+        private final ListView<L> list;
+        private final ObservableList<L> data;
+        private final Text label;
+        private final String labelText;
+
+        private ListDataTuple(ListView<L> list, ObservableList<L> data, Text label, String labelText) {
+            this.list = list;
+            this.data = data;
+            this.label = label;
+            this.labelText = labelText;
+        }
+
+        public void show() {
+            this.list.setItems(data);
+            this.label.setText(this.labelText);
+
+            this.list.setVisible(true);
+            this.label.setVisible(true);
+        }
+
+    }
+
+    private List<ListDataTuple<?>> data = new LinkedList<>();
     private List<Node> show = new LinkedList<>();
     private List<Node> hide = new LinkedList<>();
 
-    public ToggleButtonEventHandler(ListView<L> list, ObservableList<L> data, Text label, String labelText) {
+    public <L> ToggleButtonEventHandler(ListView<L> list, ObservableList<L> data, Text label, String labelText) {
         addListAndData(list, data, label, labelText);
     }
 
@@ -40,12 +60,9 @@ public class ToggleButtonEventHandler<L> implements EventHandler<ActionEvent> {
      * @param data
      * @return
      */
-    public ToggleButtonEventHandler<L> addListAndData(ListView<L> list, ObservableList<L> data, Text label,
+    public <L> ToggleButtonEventHandler addListAndData(ListView<L> list, ObservableList<L> data, Text label,
             String labelText) {
-        this.list.add(list);
-        this.data.add(data);
-        this.labels.add(label);
-        this.labelText.add(labelText);
+        this.data.add(new ListDataTuple<>(list, data, label, labelText));
         return this;
     }
 
@@ -55,7 +72,7 @@ public class ToggleButtonEventHandler<L> implements EventHandler<ActionEvent> {
      * @param show
      * @return
      */
-    public ToggleButtonEventHandler<L> addShow(Node... show) {
+    public ToggleButtonEventHandler addShow(Node... show) {
         for (Node s : show) {
             this.show.add(s);
         }
@@ -68,7 +85,7 @@ public class ToggleButtonEventHandler<L> implements EventHandler<ActionEvent> {
      * @param hide
      * @return
      */
-    public ToggleButtonEventHandler<L> addHide(Node... hide) {
+    public ToggleButtonEventHandler addHide(Node... hide) {
         for (Node h : hide) {
             this.hide.add(h);
         }
@@ -81,24 +98,23 @@ public class ToggleButtonEventHandler<L> implements EventHandler<ActionEvent> {
      * @param button
      * @return
      */
-    public ToggleButtonEventHandler<L> setSelected(ToggleButton button) {
+    public ToggleButtonEventHandler setSelected(ToggleButton button) {
         button.setSelected(true);
         showContent();
         return this;
     }
 
     private void showContent() {
-        for (int i = 0; i < list.size(); i++) {
-            this.list.get(i).setItems(data.get(i));
-            this.labels.get(i).setText(this.labelText.get(i));
-            this.list.get(i).setVisible(true);
-            this.labels.get(i).setVisible(true);
+        for (ListDataTuple<?> t : data) {
+            t.show();
         }
         // hide has lower priority than show
         for (Node h : hide) {
+            h.managedProperty().bind(h.visibleProperty());
             h.setVisible(false);
         }
         for (Node s : show) {
+            s.managedProperty().unbind();
             s.setVisible(true);
         }
     }
