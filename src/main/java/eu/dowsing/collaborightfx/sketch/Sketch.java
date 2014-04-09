@@ -97,6 +97,7 @@ public class Sketch {
         Shape shape = new Shape(x, y, lineWidth, mover);
         shape.setFill(fillColor);
         shape.setStroke(strokeColor);
+        notifyOnStructureUpdateListener(shape, true);
         return shape;
     }
 
@@ -167,11 +168,24 @@ public class Sketch {
         this.modificationTime = System.currentTimeMillis();
     }
 
-    public Shape addShape(Shape shape) {
-        this.shapes.add(shape);
-        updateModificationTime();
-        return shape;
+    private List<OnStructureUpdateListener> structureUpdateListener = new LinkedList<>();
+
+    public void addOnStructureUpdateListener(OnStructureUpdateListener listener) {
+        this.structureUpdateListener.add(listener);
     }
+
+    private void notifyOnStructureUpdateListener(Shape shape, boolean create) {
+        for (OnStructureUpdateListener listener : structureUpdateListener) {
+            listener.onStructureUpdate(shape, create);
+        }
+    }
+
+    // private Shape addShape(Shape shape) {
+    // this.shapes.add(shape);
+    // updateModificationTime();
+    // notifyOnStructureUpdateListener(shape);
+    // return shape;
+    // }
 
     /**
      * Get the shapes in the painting.

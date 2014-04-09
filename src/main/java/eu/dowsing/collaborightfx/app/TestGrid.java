@@ -51,8 +51,10 @@ import eu.dowsing.collaborightfx.app.xmpp.XmppConnector;
 import eu.dowsing.collaborightfx.app.xmpp.XmppConnector.ConnectStatus;
 import eu.dowsing.collaborightfx.preferences.PreferenceLoader;
 import eu.dowsing.collaborightfx.preferences.PreferenceWrapper;
+import eu.dowsing.collaborightfx.sketch.OnStructureUpdateListener;
 import eu.dowsing.collaborightfx.sketch.Sketch;
 import eu.dowsing.collaborightfx.sketch.SketchLoader;
+import eu.dowsing.collaborightfx.sketch.structure.Shape;
 import eu.dowsing.collaborightfx.view.painting.SketchView;
 import eu.dowsing.collaborightfx.view.painting.ToggleButtonEventHandler;
 
@@ -73,7 +75,8 @@ public class TestGrid extends Application {
     private ObservableList<Integer> lineWidthOptions = FXCollections.observableArrayList(1, 2, 5, 10);
     private ComboBox<Integer> lineWidthCombo = new ComboBox<>(lineWidthOptions);
 
-    private SketchView sketch;
+    private Sketch sketch;
+    private SketchView sketchView;
 
     private ColorPicker strokePicker = new ColorPicker();;
 
@@ -109,6 +112,7 @@ public class TestGrid extends Application {
     public void start(Stage primaryStage) {
         int width = 800;
         int height = 800;
+        loadSketch();
         Control pane = createAndInitUI(width, height);
         initXmpp();
 
@@ -125,22 +129,43 @@ public class TestGrid extends Application {
         xmppConnectLogin();
     }
 
-    private Control createAndInitUI(double maxWdith, double maxHeight) {
-        /* **********************
-         * Load Painting
-         */
-        Sketch painting = null;
+    private void loadSketch() {
         try {
             Preferences p = PreferenceLoader.getInstance().getCurrentPreferences();
             String openSketch = p.get(PreferenceWrapper.Keys.SKETCH_OPEN.toString(), "default.skml");
-            painting = sketchLoader.loadSketch(openSketch, true);
+            sketch = sketchLoader.loadSketch(openSketch, true);
+            sketch.addOnStructureUpdateListener(new OnStructureUpdateListener() {
 
-            sketch = new SketchView(painting, maxWdith, 600);
-            strokeColor = sketch.getFillColor();
+                @Override
+                public void onStructureUpdate(Shape shape, boolean create) {
+                    System.out.println("On structure update for " + shape);
+                    RosterEntry entry = userList.getSelectionModel().getSelectedItem();
+                    if (entry != null) {
+                        System.out.println("Sending sketch update to " + entry.getUser());
+                        try {
+                            jabber.sendSketchUpdate(entry.getUser(), shape);
+                        } catch (XMPPException e) {
+                            System.err.println("Could not send sketch update to user " + entry.getUser());
+                            e.printStackTrace();
+                        }
+                    } else {
+                        System.out.println("Cannot send sketch update because nothing was selected");
+                    }
+                }
+            });
         } catch (Exception e) {
             System.err.println("Could not load initial painting");
             e.printStackTrace();
         }
+
+    }
+
+    private Control createAndInitUI(double maxWdith, double maxHeight) {
+        /* **********************
+         * Load Painting
+         */
+        sketchView = new SketchView(sketch, maxWdith, 600);
+        strokeColor = sketchView.getFillColor();
 
         /* **********************
          * Create layout
@@ -187,7 +212,7 @@ public class TestGrid extends Application {
         userPop.setDetachable(false);
 
         // canvas
-        sketchBox.getChildren().addAll(sketch);
+        sketchBox.getChildren().addAll(sketchView);
 
         // details
         detailBox.getChildren().addAll(listButtons, listBox);
@@ -243,7 +268,7 @@ public class TestGrid extends Application {
         strokePicker.setOnAction(new EventHandler<ActionEvent>() {
             public void handle(ActionEvent t) {
                 strokeColor = strokePicker.getValue();
-                sketch.setStrokeColor(strokeColor);
+                sketchView.setStrokeColor(strokeColor);
             }
         });
 
@@ -251,7 +276,7 @@ public class TestGrid extends Application {
         lineWidthCombo.setOnAction(new EventHandler<ActionEvent>() {
             @Override
             public void handle(ActionEvent arg0) {
-                sketch.setLineWidth(lineWidthCombo.getValue());
+                sketchView.setLineWidth(lineWidthCombo.getValue());
             }
         });
 

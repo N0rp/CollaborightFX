@@ -3,6 +3,7 @@ package eu.dowsing.collaborightfx.view.painting;
 import java.util.LinkedList;
 import java.util.List;
 
+import javafx.application.Platform;
 import javafx.event.EventHandler;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
@@ -10,6 +11,7 @@ import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.ArcType;
+import eu.dowsing.collaborightfx.sketch.OnStructureUpdateListener;
 import eu.dowsing.collaborightfx.sketch.PaintingMover;
 import eu.dowsing.collaborightfx.sketch.Sketch;
 import eu.dowsing.collaborightfx.sketch.misc.RgbaColor;
@@ -31,7 +33,7 @@ public class SketchView extends Canvas {
 
     private List<ShapeView> shapes = new LinkedList<>();
 
-    private Sketch painting;
+    private Sketch sketch;
 
     public SketchView(Sketch painting) {
         super();
@@ -44,31 +46,31 @@ public class SketchView extends Canvas {
     }
 
     public void setFillColor(Color color) {
-        painting.setFillColor(toModel(color));
+        sketch.setFillColor(toModel(color));
     }
 
     public Color getFillColor() {
-        return toFx(painting.getFillColor());
+        return toFx(sketch.getFillColor());
     }
 
     public void setStrokeColor(Color color) {
-        painting.setStrokeColor(toModel(color));
+        sketch.setStrokeColor(toModel(color));
     }
 
     public Color getStrokeColor() {
-        return toFx(painting.getStrokeColor());
+        return toFx(sketch.getStrokeColor());
     }
 
     public double getLineWidth() {
-        return painting.getLineWidth();
+        return sketch.getLineWidth();
     }
 
     public void setLineWidth(double lineWidth) {
-        this.painting.setLineWidth(lineWidth);
+        this.sketch.setLineWidth(lineWidth);
     }
 
     private void init(Sketch painting) {
-        this.painting = painting;
+        this.sketch = painting;
         this.gc = canvas.getGraphicsContext2D();
         initControl();
         // drawSampleShapes(gc);
@@ -78,11 +80,32 @@ public class SketchView extends Canvas {
         drawTestModel();
         this.shapes = toFx(painting.getShapes());
         draw(gc);
+
+        this.sketch.addOnStructureUpdateListener(new OnStructureUpdateListener() {
+
+            @Override
+            public void onStructureUpdate(Shape shape, boolean create) {
+
+                if (create) {
+                    final ShapeView shapeView = new ShapeView(shape);
+                    shapes.add(shapeView);
+
+                    Platform.runLater(new Runnable() {
+
+                        @Override
+                        public void run() {
+                            shapeView.draw(gc, mover);
+                        }
+                    });
+                    System.out.println("SketchView: Shape size now: " + shapes.size());
+                }
+            }
+        });
     }
 
     private void testSimpleXml() {
         try {
-            this.painting.save("res/painting/testPainting.xml");
+            this.sketch.save("res/painting/testPainting.xml");
         } catch (Exception e) {
             System.err.println("Could not save painting");
             e.printStackTrace();
@@ -109,11 +132,7 @@ public class SketchView extends Canvas {
                 if (e.getButton() == MouseButton.PRIMARY) {
                     // System.out.println("Mouse pressed");
 
-                    ShapeView shape = new ShapeView(painting.createShape(e.getX(), e.getY(), mover));
-                    shapes.add(shape);
-
-                    shape.draw(gc, mover);
-                    System.out.println("Shape size now: " + shapes.size());
+                    sketch.createShape(e.getX(), e.getY(), mover);
                     // gc.moveTo(e.getX(), e.getY());
                 } else if (e.getButton() == MouseButton.SECONDARY) {
                     mover.setMoveStart(e.getX(), e.getY());
@@ -151,7 +170,7 @@ public class SketchView extends Canvas {
                     ShapeView shape = getCurrentShapeView();
                     shape.getShape().addPoint(e.getX(), e.getY(), true, mover);
                     try {
-                        painting.save();
+                        sketch.save();
                         System.out.println("Saved update");
                     } catch (Exception e1) {
                         System.err.println("Could not save painting after mouse released");
@@ -165,7 +184,7 @@ public class SketchView extends Canvas {
     }
 
     public Color getBackgroundColor() {
-        RgbaColor color = painting.getBackground();
+        RgbaColor color = sketch.getBackground();
         return Color.rgb(color.getRed(), color.getGreen(), color.getBlue(), color.getAlpha());
     }
 

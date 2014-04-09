@@ -32,8 +32,12 @@ import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.packet.DefaultPacketExtension;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Message.Type;
+import org.jivesoftware.smack.packet.PacketExtension;
 import org.jivesoftware.smack.packet.Presence;
 import org.jivesoftware.smack.util.StringUtils;
+
+import eu.dowsing.collaborightfx.sketch.structure.Shape;
+import eu.dowsing.collaborightfx.sketch.transaction.StructureUpdate;
 
 /**
  * Connects to xmpp network.
@@ -292,11 +296,21 @@ public class XmppConnector {
         addMessage2ContactHistory(jid, msg);
     }
 
-    public void sendTransaction(String jid) throws XMPPException {
+    public void sendTestTransaction(String jid) throws XMPPException {
         Chat chat = getChat(jid);
         Message msg = new Message(jid, Message.Type.chat);
         MyExtension transaction = new MyExtension();
         transaction.setValue("foo", "bar");
+        msg.addExtension(transaction);
+        chat.sendMessage(msg);
+    }
+
+    private static long testStructureId = 0;
+
+    public void sendSketchUpdate(String jid, Shape shape) throws XMPPException {
+        Chat chat = getChat(jid);
+        Message msg = new Message(jid, Message.Type.chat);
+        StructureUpdate transaction = new StructureUpdate(testStructureId++);
         msg.addExtension(transaction);
         chat.sendMessage(msg);
     }
@@ -474,6 +488,36 @@ public class XmppConnector {
             Type type = message.getType();
 
             if (message != null) {
+
+                PacketExtension ext = message.getExtension("structureUpdate", "jabber:client");
+
+                if (ext != null) {
+                    System.out.println("Xmpp: Received a structure update extension of class " + ext.getClass());
+                    if (ext instanceof DefaultPacketExtension) {
+                        DefaultPacketExtension def = (DefaultPacketExtension) ext;
+                        System.out.println("Xmpp: Structure update names are " + def.getNames());
+                        System.out.println("Xmpp: Structure update content is " + def.toXML());
+                        try {
+                            StructureUpdate update = StructureUpdate.fromExtension(ext);
+                            System.out.println("Struture update for id " + update.getStructureId());
+                        } catch (Exception e) {
+                            System.err.println("Could not transform extension into structure update");
+                            e.printStackTrace();
+                        }
+                    }
+                    // StructureUpdate update = (StructureUpdate) ext;
+                    // System.out.println("MyMessageListener: 1/2 Received a structure update for structure id: "
+                    // + update.getStructureId());
+                    // try {
+                    // update.updateFromXml();
+                    // } catch (Exception e) {
+                    // System.err.println("MyMessageListener: Could not update from xml because");
+                    // e.printStackTrace();
+                    // }
+                    // System.out.println("MyMessageListener: 2/2 Received a structure update for structure id: "
+                    // + update.getStructureId());
+                }
+
                 if (type == Message.Type.chat && bodyCount >= 1) {
                     String fromJid = getJID(from);
 
@@ -484,6 +528,10 @@ public class XmppConnector {
                     addMessage2ContactHistory(fromJid, message);
                 } else {
                     System.out.println("MyMessageListener: Received extensioncount " + message.getExtensions().size());
+                    for (PacketExtension extension : message.getExtensions()) {
+                        System.out.println("  Extension element " + extension.getElementName() + " and namespace "
+                                + extension.getNamespace());
+                    }
 
                     Object tmp = message.getExtension(MyExtension.NAME, MyExtension.NS);
                     if (tmp != null) {

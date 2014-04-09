@@ -6,16 +6,19 @@ import org.simpleframework.xml.core.Persister;
 
 public abstract class Transaction implements PacketExtension {
 
+    public static final String NAME = "Transaction";
+    public static final String NS = "eu.dowsing.collaboright";
+
     protected static Serializer serializer = new Persister();
 
     @Override
     public String getElementName() {
-        return "Transaction";
+        return NAME;
     }
 
     @Override
     public String getNamespace() {
-        return "eu.dowsing.collaboright";
+        return NS;
     }
 
 }
