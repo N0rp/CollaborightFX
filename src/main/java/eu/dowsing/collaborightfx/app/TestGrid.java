@@ -1,8 +1,6 @@
 package eu.dowsing.collaborightfx.app;
 
-import java.io.IOException;
 import java.util.prefs.BackingStoreException;
-import java.util.prefs.InvalidPreferencesFormatException;
 import java.util.prefs.Preferences;
 
 import javafx.application.Application;
@@ -52,6 +50,8 @@ import eu.dowsing.collaborightfx.app.xmpp.XmppConnector;
 import eu.dowsing.collaborightfx.app.xmpp.XmppConnector.ConnectStatus;
 import eu.dowsing.collaborightfx.model.painting.Sketch;
 import eu.dowsing.collaborightfx.model.painting.SketchLoader;
+import eu.dowsing.collaborightfx.preferences.PreferenceLoader;
+import eu.dowsing.collaborightfx.preferences.PreferenceWrapper;
 import eu.dowsing.collaborightfx.view.painting.SketchView;
 import eu.dowsing.collaborightfx.view.painting.ToggleButtonEventHandler;
 
@@ -104,6 +104,8 @@ public class TestGrid extends Application {
 
     private NotificationPane notificationPane;
 
+    private static final String APP_TITLE = "Collaboright";
+
     @Override
     public void start(Stage primaryStage) {
         int width = 800;
@@ -114,6 +116,12 @@ public class TestGrid extends Application {
         final Scene scene = new Scene(pane, width, height);
         primaryStage.setScene(scene);
         primaryStage.show();
+
+        // set title
+        Preferences p = PreferenceLoader.getInstance().getCurrentPreferences();
+        String user = p.get(PreferenceWrapper.JABBER_USER, "Geoffrey");
+
+        primaryStage.setTitle(APP_TITLE + " - " + user);
 
         xmppConnectLogin();
     }
@@ -436,93 +444,91 @@ public class TestGrid extends Application {
     }
 
     private void xmppConnectLogin() {
+        String e = "";
 
-        Preferences p = PreferenceTest.getPreferences();
-        String host = p.get(PreferenceTest.JABBER_HOST, PreferenceTest.JABBER_HOST_DEFAULT);
-        int port = p.getInt(PreferenceTest.JABBER_PORT, PreferenceTest.JABBER_PORT_DEFAULT);
-        String user = p.get(PreferenceTest.JABBER_USER, PreferenceTest.JABBER_USER_DEFAULT);
-        String pw = p.get(PreferenceTest.JABBER_PASSWORD, PreferenceTest.JABBER_PASSWORD_DEFAULT);
-
-        if (TestGrid.xmppArguments.isValid()) {
-            host = TestGrid.xmppArguments.host;
-            port = TestGrid.xmppArguments.port;
-            user = TestGrid.xmppArguments.user;
-            pw = TestGrid.xmppArguments.pw;
-        }
+        Preferences p = PreferenceLoader.getInstance().getCurrentPreferences();
+        String host = p.get(PreferenceWrapper.JABBER_HOST, e);
+        int port = p.getInt(PreferenceWrapper.JABBER_PORT, 0);
+        String user = p.get(PreferenceWrapper.JABBER_USER, e);
+        String pw = p.get(PreferenceWrapper.JABBER_PASSWORD, e);
+        boolean autoConnect = p.getBoolean(PreferenceWrapper.JABBER_AUTO_CONNECT, true);
 
         jabber.setConnectionData(host, port, user, pw);
-        jabber.connectAndLoginAsync();
-
-    }
-
-    private void testXmppMessage(XmppConnector jabber) {
-        System.out.println("Test jabber messaging");
-        try {
-            // jabber.connectAndLoginAsync();
-            // jabber.doStuff();
-            // jabber.createEntry("RichardG@chat.maibornwolff.de", "Richard");
-            jabber.sendMessage("Ping", "fyinconvenience@xabber.de");
-            System.out.println("Launching GUI");
-        } catch (XMPPException e) {
-            System.err.println("Jabber did not want to connect");
-            e.printStackTrace();
-        } catch (Exception e) {
-            System.err.println("Jabber did not want to add user");
-            e.printStackTrace();
-        } finally {
-            System.out.println("Disconnecting jabber");
-            jabber.disconnect();
+        if (autoConnect) {
+            System.out.println("Auto-connecting to " + host + " at port " + port + " as user " + user);
+            jabber.connectAndLoginAsync();
+        } else {
+            System.out.println("Not Auto-connecting to " + host + " at port " + port + " as user " + user);
         }
     }
 
-    public static void main(String[] args) {
-        System.out.println("Loading Preference");
-        try {
-            PreferenceTest.load(true);
-        } catch (IOException | InvalidPreferencesFormatException e) {
-            System.err.println("Could not load preferences");
-            e.printStackTrace();
-        }
-        // PreferenceTest.printPreference();
-
-        try {
-            PreferenceTest.save();
-        } catch (IOException | BackingStoreException e) {
-            System.err.println("Could not save preferences");
-            e.printStackTrace();
+    private static String array2String(Object[] array) {
+        String str = "";
+        for (Object o : array) {
+            if (!str.isEmpty()) {
+                str += ", ";
+            }
+            str += o;
         }
 
-        if (args.length > 0) {
-            if (args.length != 4) {
-                System.err.println("Arguments must be exactly 4: Xmpp host, port, user and password");
-            } else {
-                TestGrid.xmppArguments.setArguments(args);
+        return "[" + str + "]";
+    }
+
+    public static void main(String[] args) throws BackingStoreException {
+        // TODO save preferences again
+        // TODO disconnect from xmpp???
+
+        final int MAX_ARGS = 5;
+
+        if (!(args.length == 0 || args.length == MAX_ARGS)) {
+            System.err.println("Argument length is " + args.length);
+            System.err.println("Arguments must be exactly 0 or 5 and contain: Xmpp host, port, user, password "
+                    + "and a boolean flag if auto-connect to xmpp");
+            System.err.println("Arguments are instead: " + array2String(args));
+
+            System.exit(-1);
+        }
+
+        PreferenceLoader loader = PreferenceLoader.getInstance();
+        if (args.length == MAX_ARGS) {
+            Preferences temp = getArgsPreferences(args);
+            loader.setCurrentPreferences(temp);
+            System.out.println("Using temporary Preferences");
+        } else {
+            System.out.println("Loading Preferences");
+            String mainPrefName = "Main.pref";
+            if (!loader.setCurrentPreferences(mainPrefName)) {
+                System.err.println("Could not load " + mainPrefName + " ; Known preferences are "
+                        + loader.propertyPreferenceFileList());
             }
         }
+
+        Preferences p = loader.getCurrentPreferences();
+        if (p == null) {
+            System.err.println("Could not find any preferences");
+            System.exit(-1);
+        }
+
+        // PreferenceWrapper.printPreference(p);
+
+        // try {
+        // PreferenceWrapper.save();
+        // } catch (IOException | BackingStoreException e) {
+        // System.err.println("Could not save preferences");
+        // e.printStackTrace();
+        // }
 
         System.out.println("Launching App");
         Application.launch(TestGrid.class);
     }
 
-    public static XmppArguments xmppArguments = new TestGrid.XmppArguments();
-
-    public static class XmppArguments {
-        private String host;
-        private int port;
-        private String user;
-        private String pw;
-
-        public boolean isValid() {
-            return host != null && port > 0 && user != null && pw != null;
-        }
-
-        public void setArguments(String[] args) {
-            this.host = args[0];
-            this.port = Integer.parseInt(args[1]);
-            this.user = args[2];
-            this.pw = args[3];
-
-        }
+    private static Preferences getArgsPreferences(String[] args) throws BackingStoreException {
+        String host = args[0];
+        int port = Integer.parseInt(args[1]);
+        String user = args[2];
+        String pw = args[3];
+        boolean autoConnect = Boolean.parseBoolean(args[4]);
+        return PreferenceWrapper.create("temp", host, port, user, pw, autoConnect);
     }
 
 }

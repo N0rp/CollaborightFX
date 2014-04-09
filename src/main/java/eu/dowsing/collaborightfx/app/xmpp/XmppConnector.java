@@ -33,6 +33,7 @@ import org.jivesoftware.smack.packet.DefaultPacketExtension;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Message.Type;
 import org.jivesoftware.smack.packet.Presence;
+import org.jivesoftware.smack.util.StringUtils;
 
 /**
  * Connects to xmpp network.
@@ -344,6 +345,9 @@ public class XmppConnector {
     }
 
     private String getJID(String from) {
+        // TODO verify that this is better
+        String name = StringUtils.parseName(from);
+
         if (from != null && from.indexOf("/") > 0) {
             String jid = from.substring(0, from.indexOf("/"));
 
