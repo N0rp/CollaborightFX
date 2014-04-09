@@ -1,5 +1,6 @@
 package eu.dowsing.collaborightfx.app;
 
+import java.io.IOException;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 
@@ -48,16 +49,16 @@ import org.jivesoftware.smack.packet.Message;
 import eu.dowsing.collaborightfx.app.xmpp.OnChangeUpdateTextListener;
 import eu.dowsing.collaborightfx.app.xmpp.XmppConnector;
 import eu.dowsing.collaborightfx.app.xmpp.XmppConnector.ConnectStatus;
-import eu.dowsing.collaborightfx.model.painting.Sketch;
-import eu.dowsing.collaborightfx.model.painting.SketchLoader;
 import eu.dowsing.collaborightfx.preferences.PreferenceLoader;
 import eu.dowsing.collaborightfx.preferences.PreferenceWrapper;
+import eu.dowsing.collaborightfx.sketch.Sketch;
+import eu.dowsing.collaborightfx.sketch.SketchLoader;
 import eu.dowsing.collaborightfx.view.painting.SketchView;
 import eu.dowsing.collaborightfx.view.painting.ToggleButtonEventHandler;
 
 public class TestGrid extends Application {
 
-    private SketchLoader loader = new SketchLoader("res/sketch");
+    private SketchLoader sketchLoader = new SketchLoader("res/sketch/");
     private final XmppConnector jabber = new XmppConnector();
 
     private Text upperListLabel = new Text("Upper");
@@ -73,8 +74,6 @@ public class TestGrid extends Application {
     private ComboBox<Integer> lineWidthCombo = new ComboBox<>(lineWidthOptions);
 
     private SketchView sketch;
-
-    private static final String lastPainting = "res/painting/current.xml";
 
     private ColorPicker strokePicker = new ColorPicker();;
 
@@ -119,7 +118,7 @@ public class TestGrid extends Application {
 
         // set title
         Preferences p = PreferenceLoader.getInstance().getCurrentPreferences();
-        String user = p.get(PreferenceWrapper.JABBER_USER, "Geoffrey");
+        String user = p.get(PreferenceWrapper.Keys.JABBER_USER.toString(), "Geoffrey");
 
         primaryStage.setTitle(APP_TITLE + " - " + user);
 
@@ -132,7 +131,9 @@ public class TestGrid extends Application {
          */
         Sketch painting = null;
         try {
-            painting = loader.loadSketch(lastPainting, false);
+            Preferences p = PreferenceLoader.getInstance().getCurrentPreferences();
+            String openSketch = p.get(PreferenceWrapper.Keys.SKETCH_OPEN.toString(), "default.skml");
+            painting = sketchLoader.loadSketch(openSketch, true);
 
             sketch = new SketchView(painting, maxWdith, 600);
             strokeColor = sketch.getFillColor();
@@ -205,8 +206,8 @@ public class TestGrid extends Application {
                 "Contacts").addListAndData(messageList, jabber.getXmppSelectedContactChat(), bottomListLabel,
                 "ContactMessages").addHide(sketchList, messageList, bottomListLabel, messageBox));
 
-        btSketches.setOnAction(new ToggleButtonEventHandler(sketchList, loader.getSketchFileNames(), upperListLabel,
-                "Sketches").addHide(userList, messageList, bottomListLabel, messageBox));
+        btSketches.setOnAction(new ToggleButtonEventHandler(sketchList, sketchLoader.getSketchFileNames(),
+                upperListLabel, "Sketches").addHide(userList, messageList, bottomListLabel, messageBox));
 
         bUser.setOnAction(new EventHandler<ActionEvent>() {
             @Override
@@ -379,7 +380,8 @@ public class TestGrid extends Application {
                 }
 
                 String usr = getUser(item.getFrom());
-                from.setText(usr);
+                String nick = jabber.getNick(item.getFrom());
+                from.setText(nick);
                 message.setText(item.getBody());
 
                 setGraphic(box);
@@ -447,11 +449,11 @@ public class TestGrid extends Application {
         String e = "";
 
         Preferences p = PreferenceLoader.getInstance().getCurrentPreferences();
-        String host = p.get(PreferenceWrapper.JABBER_HOST, e);
-        int port = p.getInt(PreferenceWrapper.JABBER_PORT, 0);
-        String user = p.get(PreferenceWrapper.JABBER_USER, e);
-        String pw = p.get(PreferenceWrapper.JABBER_PASSWORD, e);
-        boolean autoConnect = p.getBoolean(PreferenceWrapper.JABBER_AUTO_CONNECT, true);
+        String host = p.get(PreferenceWrapper.Keys.JABBER_HOST.toString(), e);
+        int port = p.getInt(PreferenceWrapper.Keys.JABBER_PORT.toString(), 0);
+        String user = p.get(PreferenceWrapper.Keys.JABBER_USER.toString(), e);
+        String pw = p.get(PreferenceWrapper.Keys.JABBER_PASSWORD.toString(), e);
+        boolean autoConnect = p.getBoolean(PreferenceWrapper.Keys.JABBER_AUTO_CONNECT.toString(), true);
 
         jabber.setConnectionData(host, port, user, pw);
         if (autoConnect) {
@@ -475,8 +477,7 @@ public class TestGrid extends Application {
     }
 
     public static void main(String[] args) throws BackingStoreException {
-        // TODO save preferences again
-        // TODO disconnect from xmpp???
+        // TODO disconnect from xmpp??? do we need to, how would we do that?
 
         final int MAX_ARGS = 5;
 
@@ -492,7 +493,7 @@ public class TestGrid extends Application {
         PreferenceLoader loader = PreferenceLoader.getInstance();
         if (args.length == MAX_ARGS) {
             Preferences temp = getArgsPreferences(args);
-            loader.setCurrentPreferences(temp);
+            loader.setCurrentPreferences("temp", temp);
             System.out.println("Using temporary Preferences");
         } else {
             System.out.println("Loading Preferences");
@@ -511,12 +512,16 @@ public class TestGrid extends Application {
 
         // PreferenceWrapper.printPreference(p);
 
-        // try {
-        // PreferenceWrapper.save();
-        // } catch (IOException | BackingStoreException e) {
-        // System.err.println("Could not save preferences");
-        // e.printStackTrace();
-        // }
+        try {
+            if (args.length == 0) {
+                // save changes to the loaded preferences in case new default values were added, so they show up on the
+                // file system
+                loader.saveCurrentPreferences();
+            }
+        } catch (IOException | BackingStoreException e) {
+            System.err.println("Could not save preferences");
+            e.printStackTrace();
+        }
 
         System.out.println("Launching App");
         Application.launch(TestGrid.class);
@@ -528,7 +533,7 @@ public class TestGrid extends Application {
         String user = args[2];
         String pw = args[3];
         boolean autoConnect = Boolean.parseBoolean(args[4]);
-        return PreferenceWrapper.create("temp", host, port, user, pw, autoConnect);
+        return PreferenceWrapper.create("temp", host, port, user, pw, autoConnect, "default.skml");
     }
 
 }

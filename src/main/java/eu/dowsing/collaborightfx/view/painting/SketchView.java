@@ -10,10 +10,10 @@ import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.ArcType;
-import eu.dowsing.collaborightfx.model.RgbaColor;
-import eu.dowsing.collaborightfx.model.painting.Sketch;
-import eu.dowsing.collaborightfx.model.painting.PaintingMover;
-import eu.dowsing.collaborightfx.model.shapes.Shape;
+import eu.dowsing.collaborightfx.sketch.PaintingMover;
+import eu.dowsing.collaborightfx.sketch.Sketch;
+import eu.dowsing.collaborightfx.sketch.misc.RgbaColor;
+import eu.dowsing.collaborightfx.sketch.structure.Shape;
 import eu.dowsing.collaborightfx.view.shapes.ShapeView;
 
 /**

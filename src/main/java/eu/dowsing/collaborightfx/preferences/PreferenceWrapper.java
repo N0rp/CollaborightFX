@@ -17,18 +17,24 @@ import java.util.prefs.Preferences;
  */
 public class PreferenceWrapper {
 
-    public static final String JABBER_HOST = "JabberHost";
-    public static final String JABBER_PORT = "JabberPort";
-    public static final String JABBER_USER = "JabberUser";
-    public static final String JABBER_PASSWORD = "JabberPw";
-    public static final String JABBER_AUTO_CONNECT = "JabberAutoConnect";
+    /**
+     * Possible keys in the preference. Use toString() to get their value.
+     * 
+     * @author richardg
+     * 
+     */
+    public enum Keys {
+        JABBER_HOST, JABBER_PORT, JABBER_USER, JABBER_PASSWORD, JABBER_AUTO_CONNECT, SKETCH_OPEN
+    }
 
     /**
      * All the known preference keys and their default value.
      */
-    private static final String[][] keysAndDefaults = new String[][] { new String[] { JABBER_HOST, "jabber.org" },
-            new String[] { JABBER_PORT, "5522" }, new String[] { JABBER_USER, "foo (do not put @jabber.org)" },
-            new String[] { JABBER_PASSWORD, "thepassword" }, new String[] { JABBER_AUTO_CONNECT, true + "" } };
+    private static final Object[][] keysAndDefaults = new Object[][] { new Object[] { Keys.JABBER_HOST, "jabber.org" },
+            new Object[] { Keys.JABBER_PORT, "5522" },
+            new Object[] { Keys.JABBER_USER, "foo (do not put @jabber.org)" },
+            new Object[] { Keys.JABBER_PASSWORD, "thepassword" }, new Object[] { Keys.JABBER_AUTO_CONNECT, "true" },
+            new Object[] { Keys.SKETCH_OPEN, "current.skml" } };
 
     // private static final String PREF_NAME = "Main.pref";
 
@@ -44,17 +50,18 @@ public class PreferenceWrapper {
      * @throws BackingStoreException
      */
     public static Preferences create(String prefName, String xHost, int xPort, String xUser, String xPw,
-            boolean xAutoConnect) throws BackingStoreException {
+            boolean xAutoConnect, String sketchOpen) throws BackingStoreException {
         Preferences prefs = Preferences.userRoot().node(prefName);
         // set default values
         setTemplateValues(prefs, true);
 
         // set custom values
-        prefs.put(JABBER_HOST, xHost);
-        prefs.putInt(JABBER_PORT, xPort);
-        prefs.put(JABBER_USER, xUser);
-        prefs.put(JABBER_PASSWORD, xPw);
-        prefs.putBoolean(JABBER_AUTO_CONNECT, xAutoConnect);
+        prefs.put(Keys.JABBER_HOST.toString(), xHost);
+        prefs.putInt(Keys.JABBER_PORT.toString(), xPort);
+        prefs.put(Keys.JABBER_USER.toString(), xUser);
+        prefs.put(Keys.JABBER_PASSWORD.toString(), xPw);
+        prefs.putBoolean(Keys.JABBER_AUTO_CONNECT.toString(), xAutoConnect);
+        prefs.put(Keys.SKETCH_OPEN.toString(), sketchOpen);
 
         return prefs;
     }
@@ -147,12 +154,12 @@ public class PreferenceWrapper {
         String e = "";
 
         // now set the values
-        for (String[] keyAndDefault : keysAndDefaults) {
-            String key = keyAndDefault[0];
-            String def = keyAndDefault[1];
+        for (Object[] keyAndDefault : keysAndDefaults) {
+            Keys key = (Keys) keyAndDefault[0];
+            Object def = keyAndDefault[1];
 
-            if (overwrite || prefs.get(key, e).equals(e)) {
-                prefs.put(key, def);
+            if (overwrite || prefs.get(key.toString(), e).equals(e)) {
+                prefs.put(key.toString(), def.toString());
             }
         }
     }

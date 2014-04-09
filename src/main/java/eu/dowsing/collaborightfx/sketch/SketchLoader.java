@@ -1,4 +1,4 @@
-package eu.dowsing.collaborightfx.model.painting;
+package eu.dowsing.collaborightfx.sketch;
 
 import java.io.File;
 import java.util.LinkedList;
@@ -15,7 +15,7 @@ import javafx.collections.ObservableList;
  */
 public class SketchLoader {
 
-    private static final String SKETCH_EXT = ".skxml";
+    private static final String SKETCH_EXT = ".skml";
 
     private ObservableList<String> sketchFileNames = FXCollections.observableArrayList();
 
@@ -25,7 +25,7 @@ public class SketchLoader {
      * Create a new SketchLoader
      * 
      * @param root
-     *            the root path that will be used to find sketches.
+     *            the root path that will be used to find sketches. Should have a / at the end. Example: res/sketch/
      */
     public SketchLoader(String rootPath) {
         refreshSketchNames(rootPath);
@@ -89,7 +89,13 @@ public class SketchLoader {
      * @throws Exception
      */
     public Sketch loadSketch(String filePath, boolean useSketchFolder) throws Exception {
-        return Sketch.load(filePath);
+        if (useSketchFolder) {
+            System.out.println("SketchLoader: Loading using sketch folder root: " + sketchRoot);
+            return Sketch.load(sketchRoot + filePath);
+        } else {
+            System.out.println("SketchLoader: Loading file directly with path: " + filePath);
+            return Sketch.load(filePath);
+        }
     }
 
     /**

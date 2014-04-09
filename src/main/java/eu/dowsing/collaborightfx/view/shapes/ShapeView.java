@@ -4,10 +4,10 @@ import java.util.List;
 
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
-import eu.dowsing.collaborightfx.model.Point;
-import eu.dowsing.collaborightfx.model.RgbaColor;
-import eu.dowsing.collaborightfx.model.painting.PaintingTransform;
-import eu.dowsing.collaborightfx.model.shapes.Shape;
+import eu.dowsing.collaborightfx.sketch.PaintingTransform;
+import eu.dowsing.collaborightfx.sketch.misc.Point;
+import eu.dowsing.collaborightfx.sketch.misc.RgbaColor;
+import eu.dowsing.collaborightfx.sketch.structure.Shape;
 
 /**
  * View of a shape.

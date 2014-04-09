@@ -1,4 +1,4 @@
-package eu.dowsing.collaborightfx.model.painting;
+package eu.dowsing.collaborightfx.sketch;
 
 
 public class PaintingMover extends PaintingTransform {

@@ -1,4 +1,4 @@
-package eu.dowsing.collaborightfx.model.painting;
+package eu.dowsing.collaborightfx.sketch;
 
 /**
  * Contains data how the painting is transformed.

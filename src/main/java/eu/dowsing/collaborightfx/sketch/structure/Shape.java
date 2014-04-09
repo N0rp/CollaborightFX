@@ -1,4 +1,4 @@
-package eu.dowsing.collaborightfx.model.shapes;
+package eu.dowsing.collaborightfx.sketch.structure;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -6,10 +6,10 @@ import java.util.List;
 import org.simpleframework.xml.Element;
 import org.simpleframework.xml.ElementList;
 
-import eu.dowsing.collaborightfx.model.Point;
-import eu.dowsing.collaborightfx.model.RgbaColor;
-import eu.dowsing.collaborightfx.model.painting.PaintingMover;
-import eu.dowsing.collaborightfx.model.painting.PaintingTransform;
+import eu.dowsing.collaborightfx.sketch.PaintingMover;
+import eu.dowsing.collaborightfx.sketch.PaintingTransform;
+import eu.dowsing.collaborightfx.sketch.misc.Point;
+import eu.dowsing.collaborightfx.sketch.misc.RgbaColor;
 
 public class Shape {
 

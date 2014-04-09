@@ -418,6 +418,28 @@ public class XmppConnector {
         return notOffline;
     }
 
+    /**
+     * Get the nick name of the user
+     * 
+     * @param jid
+     * @return the nickname or <code>null</code>
+     */
+    public String getNick(String jid) {
+        jid = getJID(jid);
+
+        String jidSelf = getJID(conn.getUser());
+        if (jid.equals(jidSelf)) {
+            return "Self";
+        }
+
+        RosterEntry entry = roster.getEntry(jid);
+        if (entry != null) {
+            return entry.getName();
+        } else {
+            return null;
+        }
+    }
+
     private void addMessage2ContactHistory(String jid, Message msg) {
         if (!user2Messages.containsKey(jid)) {
             System.out.println("Creating new chat history for contact " + jid);

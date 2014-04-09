@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.prefs.BackingStoreException;
 import java.util.prefs.InvalidPreferencesFormatException;
 import java.util.prefs.Preferences;
 
@@ -32,6 +33,9 @@ public class PreferenceLoader {
 
     /** The current preferences, can be null. **/
     private Preferences currentPreferences;
+
+    /** Name of the current preferences. **/
+    private String currentPreferencesName;
 
     /**
      * Get the instance of the loader.
@@ -68,10 +72,13 @@ public class PreferenceLoader {
     /**
      * Set the current preferences that can be retrieved by calling {@link PreferenceLoader#getCurrenPreferences()}.
      * 
+     * @param preferenceName
+     *            the name of the preferences that can be used for storing
      * @param pref
      *            preferences that might not be stored on the file system and thus temporary.
      */
-    public void setCurrentPreferences(Preferences pref) {
+    public void setCurrentPreferences(String preferencesName, Preferences pref) {
+        this.currentPreferencesName = preferencesName;
         this.currentPreferences = pref;
     }
 
@@ -102,12 +109,16 @@ public class PreferenceLoader {
                     return false;
                 }
             }
-
+            this.currentPreferencesName = fileName;
             this.currentPreferences = name2LoadedPreferences.get(fileName);
             return true;
         } else {
             return false;
         }
+    }
+
+    public void saveCurrentPreferences() throws FileNotFoundException, IOException, BackingStoreException {
+        PreferenceWrapper.save(prefFolder, currentPreferencesName, currentPreferences);
     }
 
     /**

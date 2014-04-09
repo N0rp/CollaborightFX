@@ -1,4 +1,4 @@
-package eu.dowsing.collaborightfx.model.painting;
+package eu.dowsing.collaborightfx.sketch;
 
 import java.io.File;
 import java.util.LinkedList;
@@ -9,9 +9,9 @@ import org.simpleframework.xml.ElementList;
 import org.simpleframework.xml.Serializer;
 import org.simpleframework.xml.core.Persister;
 
-import eu.dowsing.collaborightfx.model.RgbaColor;
-import eu.dowsing.collaborightfx.model.User;
-import eu.dowsing.collaborightfx.model.shapes.Shape;
+import eu.dowsing.collaborightfx.sketch.misc.RgbaColor;
+import eu.dowsing.collaborightfx.sketch.misc.User;
+import eu.dowsing.collaborightfx.sketch.structure.Shape;
 
 /**
  * Contains the data of the painting.
@@ -20,6 +20,9 @@ import eu.dowsing.collaborightfx.model.shapes.Shape;
  * 
  */
 public class Sketch {
+    // TODO update this when loading a new sketch
+    @Element
+    private long maxId = 0;
 
     private String defaultLocation = "res/painting/defaultPainting.xml";
 
@@ -47,6 +50,15 @@ public class Sketch {
 
     public Sketch() {
         this.shapes = new LinkedList<>();
+    }
+
+    /**
+     * Generate a new unique structure id.
+     * 
+     * @return the structure id
+     */
+    public long generateStructureId() {
+        return maxId++;
     }
 
     public void setFillColor(RgbaColor fillColor) {
@@ -126,6 +138,7 @@ public class Sketch {
      * @throws Exception
      */
     public void save(String filePath) throws Exception {
+        System.out.println("Sketch: Saving to " + filePath);
         Serializer serializer = new Persister();
         File result = new File(filePath);
 
@@ -197,12 +210,12 @@ public class Sketch {
         Serializer serializer = new Persister();
         File source = new File(filePath);
         if (source.exists()) {
-            System.out.println("Painting load: File " + filePath + " exists");
+            System.out.println("Sketch: load: File " + filePath + " exists");
             Sketch painting = serializer.read(Sketch.class, source);
             painting.defaultLocation = filePath;
             return painting;
         } else {
-            System.out.println("Painting load: File " + filePath + " does not exist");
+            System.out.println("Sketch: load: File " + filePath + " does not exist, creating");
             source.createNewFile();
             Sketch painting = new Sketch();
             painting.defaultLocation = filePath;

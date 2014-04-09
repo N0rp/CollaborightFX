@@ -1,4 +1,4 @@
-package eu.dowsing.collaborightfx.model;
+package eu.dowsing.collaborightfx.sketch.misc;
 
 import org.simpleframework.xml.Attribute;
 
