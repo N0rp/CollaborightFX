@@ -29,6 +29,7 @@ import org.jivesoftware.smack.RosterEntry;
 import org.jivesoftware.smack.RosterListener;
 import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.XMPPException;
+import org.jivesoftware.smack.packet.DefaultPacketExtension;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Message.Type;
 import org.jivesoftware.smack.packet.Presence;
@@ -82,11 +83,12 @@ public class XmppConnector {
     /** List of messages exchanged for each user. **/
     private Map<String, List<Message>> user2Messages = new HashMap<>();
 
-    public void setSelectedContact(String contact) {
-        contact = getJID(user);
-        System.out.println("Selected Contact is " + user);
+    public void setSelectedContact(String cont) {
+        String contact = getJID(cont);
+        System.out.println("Selected Contact is " + cont);
 
         if (user2Messages.containsKey(contact)) {
+            System.out.println(". Previous message count with user is " + user2Messages.get(contact).size());
             xmppSelectedContactChat.setAll(user2Messages.get(contact));
         } else {
             xmppSelectedContactChat.clear();
@@ -289,6 +291,26 @@ public class XmppConnector {
         addMessage2ContactHistory(jid, msg);
     }
 
+    public void sendTransaction(String jid) throws XMPPException {
+        Chat chat = getChat(jid);
+        Message msg = new Message(jid, Message.Type.chat);
+        MyExtension transaction = new MyExtension();
+        transaction.setValue("foo", "bar");
+        msg.addExtension(transaction);
+        chat.sendMessage(msg);
+    }
+
+    private class MyExtension extends DefaultPacketExtension {
+
+        public static final String NAME = "Sketch";
+        public static final String NS = "eu.dowsing.collaboright";
+
+        public MyExtension() {
+            super(NAME, NS);
+        }
+
+    }
+
     private Chat getChat(String jid) {
         if (!user2Chat.containsKey(jid)) {
             user2Chat.put(jid, chatManager.createChat(jid, new MyMessageListener()));
@@ -394,10 +416,10 @@ public class XmppConnector {
 
     private void addMessage2ContactHistory(String jid, Message msg) {
         if (!user2Messages.containsKey(jid)) {
+            System.out.println("Creating new chat history for contact " + jid);
             ObservableList<Message> nouveau = FXCollections.observableArrayList();
             user2Messages.put(jid, nouveau);
         }
-        System.out.println("Adding message to history from " + jid + " with content: " + msg.getBody());
         xmppSelectedContactChat.add(msg);
         user2Messages.get(jid).add(msg);
     }
@@ -421,16 +443,28 @@ public class XmppConnector {
         public void processMessage(Chat chat, Message message) {
             String from = message.getFrom();
             String body = message.getBody();
+            int bodyCount = message.getBodies().size();
             // body can very well be empty, f.ex. the 'user-is-typing' message is null
             Type type = message.getType();
 
             if (message != null) {
-                String fromJid = getJID(from);
+                if (type == Message.Type.chat && bodyCount >= 1) {
+                    String fromJid = getJID(from);
 
-                System.out.println(String.format(
-                        "MyMessageListener: Received message '%1$s' from %2$s and JID %3$s with type %4$s", body, from,
-                        fromJid, type));
-                addMessage2ContactHistory(fromJid, message);
+                    System.out
+                            .println(String
+                                    .format("MyMessageListener: Received message '%1$s' from %2$s and JID %3$s with type %4$s and bodyCount %5$s",
+                                            body, from, fromJid, type, bodyCount));
+                    addMessage2ContactHistory(fromJid, message);
+                } else {
+                    System.out.println("MyMessageListener: Received extensioncount " + message.getExtensions().size());
+
+                    Object tmp = message.getExtension(MyExtension.NAME, MyExtension.NS);
+                    if (tmp != null) {
+                        MyExtension transaction = (MyExtension) tmp;
+                        System.out.println("Extension received with value " + transaction.getValue("foo"));
+                    }
+                }
             }
         }
     }

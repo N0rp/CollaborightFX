@@ -284,7 +284,7 @@ public class TestGrid extends Application {
 
                 } else if (btContacts.isSelected()) {
                     if (newVal != null) {
-                        jabber.setSelectedContact(newVal.getName());
+                        jabber.setSelectedContact(newVal.getUser());
                         bottomListLabel.setVisible(true);
                         messageList.setVisible(true);
                         messageBox.setVisible(true);
