@@ -28,4 +28,8 @@ public class Point {
         return "Point (x:" + x + " y:" + y + ")";
     }
 
+    public boolean equals(Point point) {
+        return this.x == point.x && this.y == point.y;
+    }
+
 }

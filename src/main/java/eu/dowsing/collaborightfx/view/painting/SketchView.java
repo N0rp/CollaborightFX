@@ -11,7 +11,7 @@ import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.ArcType;
-import eu.dowsing.collaborightfx.sketch.OnStructureUpdateListener;
+import eu.dowsing.collaborightfx.sketch.OnConstructUpdateListener;
 import eu.dowsing.collaborightfx.sketch.PaintingMover;
 import eu.dowsing.collaborightfx.sketch.Sketch;
 import eu.dowsing.collaborightfx.sketch.misc.RgbaColor;
@@ -81,10 +81,10 @@ public class SketchView extends Canvas {
         this.shapes = toFx(painting.getShapes());
         draw(gc);
 
-        this.sketch.addOnStructureUpdateListener(new OnStructureUpdateListener() {
+        this.sketch.addOnConstructUpdateListener(new OnConstructUpdateListener() {
 
             @Override
-            public void onStructureUpdate(Shape shape, boolean create) {
+            public void onCosntructUpdate(Shape shape, boolean create) {
 
                 if (create) {
                     final ShapeView shapeView = new ShapeView(shape);
@@ -132,7 +132,8 @@ public class SketchView extends Canvas {
                 if (e.getButton() == MouseButton.PRIMARY) {
                     // System.out.println("Mouse pressed");
 
-                    sketch.createShape(e.getX(), e.getY(), mover);
+                    Shape shape = sketch.createConstruct(e.getX(), e.getY(), false, mover);
+
                     // gc.moveTo(e.getX(), e.getY());
                 } else if (e.getButton() == MouseButton.SECONDARY) {
                     mover.setMoveStart(e.getX(), e.getY());

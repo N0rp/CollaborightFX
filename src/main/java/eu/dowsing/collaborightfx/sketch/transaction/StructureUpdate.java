@@ -6,7 +6,7 @@ import java.io.Writer;
 import org.jivesoftware.smack.packet.PacketExtension;
 import org.simpleframework.xml.Element;
 
-import eu.dowsing.collaborightfx.sketch.structure.Structure;
+import eu.dowsing.collaborightfx.sketch.structure.Shape;
 
 public class StructureUpdate extends Transaction {
 
@@ -15,18 +15,24 @@ public class StructureUpdate extends Transaction {
     private long structureId;
 
     /** The structure that receives an update. **/
-    private Structure structure;
+    @Element
+    private Shape construct;
 
     public StructureUpdate() {
 
     }
 
-    public StructureUpdate(long structureId) {
+    public StructureUpdate(long structureId, Shape construct) {
         this.structureId = structureId;
+        this.construct = construct;
     }
 
     public long getStructureId() {
         return this.structureId;
+    }
+
+    public Shape getConstruct() {
+        return construct;
     }
 
     /**
@@ -35,7 +41,8 @@ public class StructureUpdate extends Transaction {
      * @throws Exception
      */
     public static StructureUpdate fromExtension(PacketExtension ext) throws Exception {
-        StructureUpdate update = serializer.read(StructureUpdate.class, ext.toXML());
+        String asXml = ext.toXML();
+        StructureUpdate update = serializer.read(StructureUpdate.class, asXml);
         return update;
     }
 
@@ -51,6 +58,21 @@ public class StructureUpdate extends Transaction {
         }
 
         return w.toString();
+    }
+
+    @Override
+    public String toString() {
+        return toXML();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof StructureUpdate) {
+            StructureUpdate update = (StructureUpdate) obj;
+            return this.construct.equals(update.construct) && this.structureId == update.structureId;
+        } else {
+            return super.equals(obj);
+        }
     }
 
 }

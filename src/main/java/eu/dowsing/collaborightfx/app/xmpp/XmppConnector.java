@@ -88,6 +88,55 @@ public class XmppConnector {
     /** List of messages exchanged for each user. **/
     private Map<String, List<Message>> user2Messages = new HashMap<>();
 
+    private List<OnStructureUpdateListener> constructListener = new LinkedList<>();
+
+    public void addOnConstructUpdateListener(OnStructureUpdateListener listener) {
+        this.constructListener.add(listener);
+    }
+
+    private void notifyOnConstructUpdateListener(Shape shape) {
+        for (OnStructureUpdateListener listener : this.constructListener) {
+            listener.onConstructUpdate(shape);
+        }
+    }
+
+    private Task<Boolean> connectLoginTask = new Task<Boolean>() {
+        @Override
+        protected Boolean call() {
+            System.out.println("Starting Asynchronous Login");
+            ConnectStatus result = connectAndLoginSync();
+            boolean success = result == ConnectStatus.LOGGED_IN;
+            System.out.println("Asynchronous was a success " + success);
+            if (success) {
+                updateProgress(1, 1);
+            } else {
+                updateProgress(0, 1);
+            }
+            return success;
+        }
+
+        @Override
+        protected void succeeded() {
+            super.succeeded();
+            System.out.println("Done");
+            updateMessage("Done!");
+        }
+
+        @Override
+        protected void cancelled() {
+            super.cancelled();
+            System.out.println("Cancelled");
+            updateMessage("Cancelled!");
+        }
+
+        @Override
+        protected void failed() {
+            super.failed();
+            System.out.println("Failed");
+            updateMessage("Failed!");
+        }
+    };
+
     public void setSelectedContact(String cont) {
         String contact = getJID(cont);
         System.out.println("Selected Contact is " + cont);
@@ -131,43 +180,6 @@ public class XmppConnector {
     public ObservableList<Message> getXmppSelectedPartnerChat() {
         return xmppSelectedPartnerChat;
     }
-
-    private Task<Boolean> connectLoginTask = new Task<Boolean>() {
-        @Override
-        protected Boolean call() {
-            System.out.println("Starting Asynchronous Login");
-            ConnectStatus result = connectAndLoginSync();
-            boolean success = result == ConnectStatus.LOGGED_IN;
-            System.out.println("Asynchronous was a success " + success);
-            if (success) {
-                updateProgress(1, 1);
-            } else {
-                updateProgress(0, 1);
-            }
-            return success;
-        }
-
-        @Override
-        protected void succeeded() {
-            super.succeeded();
-            System.out.println("Done");
-            updateMessage("Done!");
-        }
-
-        @Override
-        protected void cancelled() {
-            super.cancelled();
-            System.out.println("Cancelled");
-            updateMessage("Cancelled!");
-        }
-
-        @Override
-        protected void failed() {
-            super.failed();
-            System.out.println("Failed");
-            updateMessage("Failed!");
-        }
-    };
 
     /**
      * Connect and login asynchroniously. {@link XmppConnector#getXmppConnectListener()} will be notified with results.
@@ -310,7 +322,7 @@ public class XmppConnector {
     public void sendSketchUpdate(String jid, Shape shape) throws XMPPException {
         Chat chat = getChat(jid);
         Message msg = new Message(jid, Message.Type.chat);
-        StructureUpdate transaction = new StructureUpdate(testStructureId++);
+        StructureUpdate transaction = new StructureUpdate(testStructureId++, shape);
         msg.addExtension(transaction);
         chat.sendMessage(msg);
     }
@@ -499,6 +511,7 @@ public class XmppConnector {
                         System.out.println("Xmpp: Structure update content is " + def.toXML());
                         try {
                             StructureUpdate update = StructureUpdate.fromExtension(ext);
+                            notifyOnConstructUpdateListener(update.getConstruct());
                             System.out.println("Struture update for id " + update.getStructureId());
                         } catch (Exception e) {
                             System.err.println("Could not transform extension into structure update");

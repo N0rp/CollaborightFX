@@ -7,6 +7,7 @@ public class RgbaColor {
     public final static RgbaColor RED = new RgbaColor(255, 0, 0, 1.0f);
     public final static RgbaColor GREEN = new RgbaColor(0, 255, 0, 1.0f);
     public final static RgbaColor BLUE = new RgbaColor(0, 0, 255, 1.0f);
+    public final static RgbaColor WHITE = new RgbaColor(255, 255, 255, 1.0f);
 
     @Attribute
     /** Red value. Between 0 and 255. **/
@@ -62,6 +63,16 @@ public class RgbaColor {
 
     public float getAlpha() {
         return a;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof RgbaColor) {
+            RgbaColor col = (RgbaColor) obj;
+            return this.a == col.a && this.b == col.b && this.g == col.g && this.r == col.r;
+        } else {
+            return super.equals(obj);
+        }
     }
 
 }

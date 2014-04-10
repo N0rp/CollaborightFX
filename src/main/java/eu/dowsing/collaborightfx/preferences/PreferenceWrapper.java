@@ -83,6 +83,7 @@ public class PreferenceWrapper {
             IOException, InvalidPreferencesFormatException {
         File pref = new File(path + prefName);
         if (pref.exists()) {
+
             Preferences.importPreferences(new FileInputStream(pref));
         }
         Preferences prefs = Preferences.userRoot().node(prefName);

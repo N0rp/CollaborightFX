@@ -20,6 +20,13 @@ import eu.dowsing.collaborightfx.sketch.structure.Shape;
  * 
  */
 public class Sketch {
+
+    public static final RgbaColor DEFAULT_BACKGROUND = RgbaColor.WHITE;
+    public static final RgbaColor DEFAULT_FILL = RgbaColor.BLUE;
+    public static final RgbaColor DEFAULT_STROKE = RgbaColor.GREEN;
+
+    public static final double DEFAULT_LINE_WIDTH = 5;
+
     // TODO update this when loading a new sketch
     @Element
     private long maxId = 0;
@@ -27,7 +34,7 @@ public class Sketch {
     private String defaultLocation = "res/painting/defaultPainting.xml";
 
     @Element
-    private RgbaColor bg = new RgbaColor();
+    private RgbaColor bg = DEFAULT_BACKGROUND;
 
     @Element
     private User owner = User.DEFAULT;
@@ -43,10 +50,10 @@ public class Sketch {
     @ElementList(type = Shape.class)
     private List<Shape> shapes;
 
-    private RgbaColor fillColor = RgbaColor.BLUE;
-    private RgbaColor strokeColor = RgbaColor.GREEN;
+    private RgbaColor fillColor = DEFAULT_FILL;
+    private RgbaColor strokeColor = DEFAULT_STROKE;
 
-    private double lineWidth = 5;
+    private double lineWidth = DEFAULT_LINE_WIDTH;
 
     public Sketch() {
         this.shapes = new LinkedList<>();
@@ -87,18 +94,35 @@ public class Sketch {
 
     /**
      * Create a new shape with the current painting parameters and add it to the list of shapes.
+     * <hr/>
+     * Do not forget that a shape needs to be set to modification done when user has finished drawing!!! This will be
+     * done when you tell the sketch that the last point was added through
+     * {@link Shape#addPoint(double, double, boolean, PaintingMover)}.
      * 
      * @param x
      * @param y
+     * @param isModificationFinished
+     *            <code>false</code> if the user is still drawing or changing the construct, else <code>true</code>
      * @param mover
      * @return
      */
-    public Shape createShape(double x, double y, PaintingMover mover) {
+    public Shape createConstruct(double x, double y, boolean isModificationFinished, PaintingMover mover) {
         Shape shape = new Shape(x, y, lineWidth, mover);
         shape.setFill(fillColor);
         shape.setStroke(strokeColor);
-        notifyOnStructureUpdateListener(shape, true);
+        shape.setModificationFinished(isModificationFinished);
+
+        addConstruct(shape, false);
         return shape;
+    }
+
+    private void addConstruct(Shape shape, boolean isRemote) {
+        this.shapes.add(shape);
+        notifyOnConstructUpdateListener(shape, true);
+    }
+
+    public void addRemoteConstruct(Shape shape) {
+        addConstruct(shape, true);
     }
 
     /**
@@ -168,15 +192,16 @@ public class Sketch {
         this.modificationTime = System.currentTimeMillis();
     }
 
-    private List<OnStructureUpdateListener> structureUpdateListener = new LinkedList<>();
+    private List<OnConstructUpdateListener> structureUpdateListener = new LinkedList<>();
 
-    public void addOnStructureUpdateListener(OnStructureUpdateListener listener) {
+    public void addOnConstructUpdateListener(OnConstructUpdateListener listener) {
         this.structureUpdateListener.add(listener);
     }
 
-    private void notifyOnStructureUpdateListener(Shape shape, boolean create) {
-        for (OnStructureUpdateListener listener : structureUpdateListener) {
-            listener.onStructureUpdate(shape, create);
+    private void notifyOnConstructUpdateListener(Shape shape, boolean create) {
+        updateModificationTime();
+        for (OnConstructUpdateListener listener : structureUpdateListener) {
+            listener.onCosntructUpdate(shape, create);
         }
     }
 

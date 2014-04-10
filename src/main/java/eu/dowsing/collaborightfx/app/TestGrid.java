@@ -47,11 +47,12 @@ import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.packet.Message;
 
 import eu.dowsing.collaborightfx.app.xmpp.OnChangeUpdateTextListener;
+import eu.dowsing.collaborightfx.app.xmpp.OnStructureUpdateListener;
 import eu.dowsing.collaborightfx.app.xmpp.XmppConnector;
 import eu.dowsing.collaborightfx.app.xmpp.XmppConnector.ConnectStatus;
 import eu.dowsing.collaborightfx.preferences.PreferenceLoader;
 import eu.dowsing.collaborightfx.preferences.PreferenceWrapper;
-import eu.dowsing.collaborightfx.sketch.OnStructureUpdateListener;
+import eu.dowsing.collaborightfx.sketch.OnConstructUpdateListener;
 import eu.dowsing.collaborightfx.sketch.Sketch;
 import eu.dowsing.collaborightfx.sketch.SketchLoader;
 import eu.dowsing.collaborightfx.sketch.structure.Shape;
@@ -134,10 +135,10 @@ public class TestGrid extends Application {
             Preferences p = PreferenceLoader.getInstance().getCurrentPreferences();
             String openSketch = p.get(PreferenceWrapper.Keys.SKETCH_OPEN.toString(), "default.skml");
             sketch = sketchLoader.loadSketch(openSketch, true);
-            sketch.addOnStructureUpdateListener(new OnStructureUpdateListener() {
+            sketch.addOnConstructUpdateListener(new OnConstructUpdateListener() {
 
                 @Override
-                public void onStructureUpdate(Shape shape, boolean create) {
+                public void onCosntructUpdate(Shape shape, boolean create) {
                     System.out.println("On structure update for " + shape);
                     RosterEntry entry = userList.getSelectionModel().getSelectedItem();
                     if (entry != null) {
@@ -467,7 +468,13 @@ public class TestGrid extends Application {
         jabber.getXmppPort().addListener(new OnChangeUpdateTextListener<>("Port:", "").setLables(lXPort));
         jabber.getXmppUser().addListener(
                 new OnChangeUpdateTextListener<>("User:", "").setButtons(bUser).setLables(lXUser));
+        jabber.addOnConstructUpdateListener(new OnStructureUpdateListener() {
 
+            @Override
+            public void onConstructUpdate(Shape shape) {
+                sketch.addRemoteConstruct(shape);
+            }
+        });
     }
 
     private void xmppConnectLogin() {

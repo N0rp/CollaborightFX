@@ -1,0 +1,9 @@
+<shape>
+   <fillColor r="0" g="0" b="255" a="1.0"/>
+   <strokeColor r="255" g="0" b="0" a="1.0"/>
+   <lineWidth>12.0</lineWidth>
+   <path class="java.util.LinkedList">
+      <point x="5.0" y="5.0"/>
+      <point x="10.0" y="10.0"/>
+   </path>
+</shape>

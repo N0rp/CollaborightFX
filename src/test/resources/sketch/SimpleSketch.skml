@@ -1,0 +1,28 @@
+<sketch>
+   <maxId>0</maxId>
+   <bg r="255" g="255" b="255" a="1.0"/>
+   <owner name="Default"/>
+   <creationTime>1397151343467</creationTime>
+   <modificationTime>1397151343467</modificationTime>
+   <shapes class="java.util.LinkedList">
+      <shape>
+         <fillColor r="0" g="0" b="255" a="1.0"/>
+         <strokeColor r="255" g="0" b="0" a="1.0"/>
+         <lineWidth>12.0</lineWidth>
+         <path class="java.util.LinkedList">
+            <point x="5.0" y="5.0"/>
+            <point x="10.0" y="20.0"/>
+         </path>
+      </shape>
+      <shape>
+         <fillColor r="0" g="0" b="255" a="1.0"/>
+         <strokeColor r="255" g="0" b="0" a="1.0"/>
+         <lineWidth>1.0</lineWidth>
+         <path class="java.util.LinkedList">
+            <point x="1.0" y="1.0"/>
+            <point x="4.0" y="4.0"/>
+            <point x="4.0" y="5.0"/>
+         </path>
+      </shape>
+   </shapes>
+</sketch>
