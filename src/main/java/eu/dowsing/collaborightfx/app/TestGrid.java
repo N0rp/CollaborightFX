@@ -464,7 +464,7 @@ public class TestGrid extends Application {
         });
         jabber.getXmppConnectStatus().addListener(
                 new OnChangeUpdateTextListener<>("Connected:", "").setLables(lXConnected));
-        jabber.getXmppHost().addListener(new OnChangeUpdateTextListener<>("Host:", "").setLables(lXHost));
+        jabber.propertyConnectedHost().addListener(new OnChangeUpdateTextListener<>("Host:", "").setLables(lXHost));
         jabber.getXmppPort().addListener(new OnChangeUpdateTextListener<>("Port:", "").setLables(lXPort));
         jabber.getXmppUser().addListener(
                 new OnChangeUpdateTextListener<>("User:", "").setButtons(bUser).setLables(lXUser));

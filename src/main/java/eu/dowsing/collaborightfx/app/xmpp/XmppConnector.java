@@ -149,7 +149,11 @@ public class XmppConnector {
         }
     }
 
-    public StringPropertyBase getXmppHost() {
+    public String getHost() {
+        return this.host;
+    }
+
+    public StringPropertyBase propertyConnectedHost() {
         return xmppHost;
     }
 
