@@ -5,9 +5,13 @@ import java.io.Writer;
 
 import org.jivesoftware.smack.packet.PacketExtension;
 import org.simpleframework.xml.Element;
+import org.simpleframework.xml.Namespace;
+import org.simpleframework.xml.Serializer;
+import org.simpleframework.xml.core.Persister;
 
 import eu.dowsing.collaborightfx.sketch.structure.Shape;
 
+@Namespace(reference = "http://www.dowsing.eu/collaboright")
 public class StructureUpdate extends Transaction {
 
     /** The id of the structure that receives an update. **/
@@ -20,6 +24,21 @@ public class StructureUpdate extends Transaction {
 
     public StructureUpdate() {
 
+    }
+
+    public static final String NAME = "structureUpdate";
+    public static final String NS = "http://www.dowsing.eu/collaboright";
+
+    protected static Serializer serializer = new Persister();
+
+    @Override
+    public String getElementName() {
+        return NAME;
+    }
+
+    @Override
+    public String getNamespace() {
+        return NS;
     }
 
     public StructureUpdate(long structureId, Shape construct) {
@@ -42,7 +61,11 @@ public class StructureUpdate extends Transaction {
      */
     public static StructureUpdate fromExtension(PacketExtension ext) throws Exception {
         String asXml = ext.toXML();
-        StructureUpdate update = serializer.read(StructureUpdate.class, asXml);
+        return fromXml(asXml);
+    }
+
+    public static StructureUpdate fromXml(String xml) throws Exception {
+        StructureUpdate update = serializer.read(StructureUpdate.class, xml);
         return update;
     }
 

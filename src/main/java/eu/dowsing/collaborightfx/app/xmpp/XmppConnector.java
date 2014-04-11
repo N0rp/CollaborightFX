@@ -1,10 +1,7 @@
 package eu.dowsing.collaborightfx.app.xmpp;
 
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
 
 import javafx.beans.property.IntegerPropertyBase;
 import javafx.beans.property.SimpleIntegerProperty;
@@ -18,26 +15,15 @@ import javafx.concurrent.Task;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
 
-import org.jivesoftware.smack.Chat;
-import org.jivesoftware.smack.ChatManager;
-import org.jivesoftware.smack.ChatManagerListener;
 import org.jivesoftware.smack.Connection;
 import org.jivesoftware.smack.ConnectionConfiguration;
-import org.jivesoftware.smack.MessageListener;
 import org.jivesoftware.smack.Roster;
 import org.jivesoftware.smack.RosterEntry;
 import org.jivesoftware.smack.RosterListener;
 import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.XMPPException;
-import org.jivesoftware.smack.packet.DefaultPacketExtension;
-import org.jivesoftware.smack.packet.Message;
-import org.jivesoftware.smack.packet.Message.Type;
-import org.jivesoftware.smack.packet.PacketExtension;
 import org.jivesoftware.smack.packet.Presence;
 import org.jivesoftware.smack.util.StringUtils;
-
-import eu.dowsing.collaborightfx.sketch.structure.Shape;
-import eu.dowsing.collaborightfx.sketch.transaction.StructureUpdate;
 
 /**
  * Connects to xmpp network.
@@ -51,8 +37,14 @@ public class XmppConnector {
         NOT_CONNECTED, LOGGED_IN, NOT_LOGGED_IN
     }
 
-    private ChatManager chatManager;
-    private MessageListener messageListener;
+    private XmppHistory history = new XmppHistory();
+
+    private XmppReceiver receiver = new XmppReceiver();
+
+    private XmppSender sender = new XmppSender(receiver, history);
+
+    /** Xmpp Contacts that are online. **/
+    private ObservableList<RosterEntry> xmppOnlineContacts = FXCollections.observableArrayList();
 
     private Connection conn;
     /**
@@ -73,31 +65,16 @@ public class XmppConnector {
     private StringPropertyBase xmppUser = new SimpleStringProperty("No User");
     private IntegerPropertyBase xmppPort = new SimpleIntegerProperty(0);
 
-    /** Xmpp Contacts that are online. **/
-    private ObservableList<RosterEntry> xmppOnlineContacts = FXCollections.observableArrayList();
-    /** Messages for the **/
-    private ObservableList<Message> xmppSelectedContactChat = FXCollections.observableArrayList();
-
-    /** Xmpp Contacts that are online. **/
-    private ObservableList<RosterEntry> xmppSketchPartners = FXCollections.observableArrayList();
-    /** Messages for the **/
-    private ObservableList<Message> xmppSelectedPartnerChat = FXCollections.observableArrayList();
-
-    /** List of chat for each user. **/
-    private Map<String, Chat> user2Chat = new HashMap<>();
-    /** List of messages exchanged for each user. **/
-    private Map<String, List<Message>> user2Messages = new HashMap<>();
-
-    private List<OnStructureUpdateListener> constructListener = new LinkedList<>();
-
-    public void addOnConstructUpdateListener(OnStructureUpdateListener listener) {
-        this.constructListener.add(listener);
+    public XmppReceiver getReceiver() {
+        return this.receiver;
     }
 
-    private void notifyOnConstructUpdateListener(Shape shape) {
-        for (OnStructureUpdateListener listener : this.constructListener) {
-            listener.onConstructUpdate(shape);
-        }
+    public XmppHistory getHistory() {
+        return this.history;
+    }
+
+    public XmppSender getSender() {
+        return this.sender;
     }
 
     private Task<Boolean> connectLoginTask = new Task<Boolean>() {
@@ -137,18 +114,6 @@ public class XmppConnector {
         }
     };
 
-    public void setSelectedContact(String cont) {
-        String contact = getJID(cont);
-        System.out.println("Selected Contact is " + cont);
-
-        if (user2Messages.containsKey(contact)) {
-            System.out.println(". Previous message count with user is " + user2Messages.get(contact).size());
-            xmppSelectedContactChat.setAll(user2Messages.get(contact));
-        } else {
-            xmppSelectedContactChat.clear();
-        }
-    }
-
     public String getHost() {
         return this.host;
     }
@@ -171,18 +136,6 @@ public class XmppConnector {
 
     public ObservableList<RosterEntry> getXmppOnlineContacts() {
         return xmppOnlineContacts;
-    }
-
-    public ObservableList<Message> getXmppSelectedContactChat() {
-        return xmppSelectedContactChat;
-    }
-
-    public ObservableList<RosterEntry> getXmppSktechPartnerContacts() {
-        return xmppSketchPartners;
-    }
-
-    public ObservableList<Message> getXmppSelectedPartnerChat() {
-        return xmppSelectedPartnerChat;
     }
 
     /**
@@ -263,13 +216,12 @@ public class XmppConnector {
         conn = new XMPPConnection(config);
         conn.connect();
 
+        receiver.setData(history, conn.getChatManager());
+
         // add listeners
         roster = conn.getRoster();
         roster.addRosterListener(new MyRoosterListener());
         // roster.setSubscriptionMode(SubscriptionMode.reject_all);
-
-        chatManager = conn.getChatManager();
-        chatManager.addChatListener(new MyChatListener());
     }
 
     private void login(String user, String password) throws XMPPException {
@@ -299,55 +251,6 @@ public class XmppConnector {
     // presence.setStatus("What's up everyone?");
     // conn.sendPacket(presence);
     // }
-
-    public void sendMessage(String message, String jid) throws XMPPException {
-
-        System.out.println(String.format("Sending mesage '%1$s' to user %2$s", message, jid));
-        jid = getJID(jid);
-
-        Chat chat = getChat(jid);
-        Message msg = new Message(jid, Message.Type.chat);
-        msg.setBody(message);
-        chat.sendMessage(msg);
-        addMessage2ContactHistory(jid, msg);
-    }
-
-    public void sendTestTransaction(String jid) throws XMPPException {
-        Chat chat = getChat(jid);
-        Message msg = new Message(jid, Message.Type.chat);
-        MyExtension transaction = new MyExtension();
-        transaction.setValue("foo", "bar");
-        msg.addExtension(transaction);
-        chat.sendMessage(msg);
-    }
-
-    private static long testStructureId = 0;
-
-    public void sendSketchUpdate(String jid, Shape shape) throws XMPPException {
-        Chat chat = getChat(jid);
-        Message msg = new Message(jid, Message.Type.chat);
-        StructureUpdate transaction = new StructureUpdate(testStructureId++, shape);
-        msg.addExtension(transaction);
-        chat.sendMessage(msg);
-    }
-
-    private class MyExtension extends DefaultPacketExtension {
-
-        public static final String NAME = "Sketch";
-        public static final String NS = "eu.dowsing.collaboright";
-
-        public MyExtension() {
-            super(NAME, NS);
-        }
-
-    }
-
-    private Chat getChat(String jid) {
-        if (!user2Chat.containsKey(jid)) {
-            user2Chat.put(jid, chatManager.createChat(jid, new MyMessageListener()));
-        }
-        return user2Chat.get(jid);
-    }
 
     public void createEntry(String user, String name) throws Exception {
         System.out.println(String.format("Creating entry for buddy '%1$s' with name %2$s", user, name));
@@ -467,96 +370,6 @@ public class XmppConnector {
             return entry.getName();
         } else {
             return null;
-        }
-    }
-
-    private void addMessage2ContactHistory(String jid, Message msg) {
-        if (!user2Messages.containsKey(jid)) {
-            System.out.println("Creating new chat history for contact " + jid);
-            ObservableList<Message> nouveau = FXCollections.observableArrayList();
-            user2Messages.put(jid, nouveau);
-        }
-        xmppSelectedContactChat.add(msg);
-        user2Messages.get(jid).add(msg);
-    }
-
-    class MyChatListener implements ChatManagerListener {
-        @Override
-        public void chatCreated(Chat chat, boolean createdLocally) {
-            String jid = getJID(chat.getParticipant());
-            System.out.println("ChatListener: Chat was created with: " + jid);
-
-            if (!createdLocally) {
-                // add message listener
-                chat.addMessageListener(new MyMessageListener());
-            }
-        }
-    }
-
-    class MyMessageListener implements MessageListener {
-
-        @Override
-        public void processMessage(Chat chat, Message message) {
-            String from = message.getFrom();
-            String body = message.getBody();
-            int bodyCount = message.getBodies().size();
-            // body can very well be empty, f.ex. the 'user-is-typing' message is null
-            Type type = message.getType();
-
-            if (message != null) {
-
-                PacketExtension ext = message.getExtension("structureUpdate", "jabber:client");
-
-                if (ext != null) {
-                    System.out.println("Xmpp: Received a structure update extension of class " + ext.getClass());
-                    if (ext instanceof DefaultPacketExtension) {
-                        DefaultPacketExtension def = (DefaultPacketExtension) ext;
-                        System.out.println("Xmpp: Structure update names are " + def.getNames());
-                        System.out.println("Xmpp: Structure update content is " + def.toXML());
-                        try {
-                            StructureUpdate update = StructureUpdate.fromExtension(ext);
-                            notifyOnConstructUpdateListener(update.getConstruct());
-                            System.out.println("Struture update for id " + update.getStructureId());
-                        } catch (Exception e) {
-                            System.err.println("Could not transform extension into structure update");
-                            e.printStackTrace();
-                        }
-                    }
-                    // StructureUpdate update = (StructureUpdate) ext;
-                    // System.out.println("MyMessageListener: 1/2 Received a structure update for structure id: "
-                    // + update.getStructureId());
-                    // try {
-                    // update.updateFromXml();
-                    // } catch (Exception e) {
-                    // System.err.println("MyMessageListener: Could not update from xml because");
-                    // e.printStackTrace();
-                    // }
-                    // System.out.println("MyMessageListener: 2/2 Received a structure update for structure id: "
-                    // + update.getStructureId());
-                }
-
-                if (type == Message.Type.chat && bodyCount >= 1) {
-                    String fromJid = getJID(from);
-
-                    System.out
-                            .println(String
-                                    .format("MyMessageListener: Received message '%1$s' from %2$s and JID %3$s with type %4$s and bodyCount %5$s",
-                                            body, from, fromJid, type, bodyCount));
-                    addMessage2ContactHistory(fromJid, message);
-                } else {
-                    System.out.println("MyMessageListener: Received extensioncount " + message.getExtensions().size());
-                    for (PacketExtension extension : message.getExtensions()) {
-                        System.out.println("  Extension element " + extension.getElementName() + " and namespace "
-                                + extension.getNamespace());
-                    }
-
-                    Object tmp = message.getExtension(MyExtension.NAME, MyExtension.NS);
-                    if (tmp != null) {
-                        MyExtension transaction = (MyExtension) tmp;
-                        System.out.println("Extension received with value " + transaction.getValue("foo"));
-                    }
-                }
-            }
         }
     }
 }

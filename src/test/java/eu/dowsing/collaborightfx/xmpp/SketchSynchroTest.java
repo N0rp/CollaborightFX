@@ -4,15 +4,15 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Properties;
 
-import javafx.collections.ListChangeListener;
+import javafx.application.Application;
 
 import org.jivesoftware.smack.XMPPException;
-import org.jivesoftware.smack.packet.Message;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import eu.dowsing.collaborightfx.app.TestGrid;
 import eu.dowsing.collaborightfx.app.xmpp.XmppConnector;
 import eu.dowsing.collaborightfx.app.xmpp.XmppConnector.ConnectStatus;
 
@@ -74,18 +74,20 @@ public class SketchSynchroTest {
         serverJid = serverProps.getProperty(USER) + "@" + serverProps.getProperty(HOST);
         clientJid = clientProps.getProperty(USER) + "@" + clientProps.getProperty(HOST);
 
-        Assert.assertEquals(ConnectStatus.LOGGED_IN, server.connectAndLoginSync());
+        // Assert.assertEquals(ConnectStatus.LOGGED_IN, server.connectAndLoginSync());
         Assert.assertEquals(ConnectStatus.LOGGED_IN, client.connectAndLoginSync());
 
-        server.setSelectedContact(clientJid);
-        client.setSelectedContact(serverJid);
+        // server.setSelectedContact(clientJid);
+        client.getHistory().setSelectedContact(serverJid);
+
+        Application.launch(TestGrid.class);
     }
 
     @AfterClass
     public static void testCleanupAndDisconnect() {
         System.out.println("-----------AfterClass---------------");
         // Teardown for data used by the unit tests
-        server.disconnect();
+        // server.disconnect();
         client.disconnect();
     }
 
@@ -94,7 +96,7 @@ public class SketchSynchroTest {
         System.out.println("Server user is: " + server.getXmppUser());
         System.out.println("Client user is: " + client.propertyConnectedHost());
 
-        server.sendMessage("Test", clientJid);
+        client.getSender().sendMessage("Test", clientJid);
         // Shape shape1 = new Shape(5, 5, 12, null);
         // shape1.addPoint(10, 20, true, null);
         // Shape shape2 = new Shape(1, 1, 1, null);
@@ -111,13 +113,13 @@ public class SketchSynchroTest {
 
     @Test(timeOut = 10000, dependsOnGroups = { "send" })
     public void receiveSimpleMessage() throws XMPPException {
-        client.getXmppSelectedContactChat().addListener(new ListChangeListener<Message>() {
-
-            @Override
-            public void onChanged(ListChangeListener.Change<? extends Message> message) {
-                System.out.println("Received message from: " + message.getFrom());
-            }
-        });
+        // client.getXmppSelectedContactChat().addListener(new ListChangeListener<Message>() {
+        //
+        // @Override
+        // public void onChanged(ListChangeListener.Change<? extends Message> message) {
+        // System.out.println("Received message from: " + message.getFrom());
+        // }
+        // });
     }
 
 }

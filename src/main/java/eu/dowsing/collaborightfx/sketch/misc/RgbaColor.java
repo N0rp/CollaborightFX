@@ -34,13 +34,30 @@ public class RgbaColor {
 
     /**
      * Create a new color, not transparent.
+     * 
+     * @param r
+     *            red value between 0 and 255
+     * @param g
+     *            green value between 0 and 255
+     * @param b
+     *            blue value between 0 and 255
      */
     public RgbaColor(int r, int g, int b) {
         this(r, g, b, 1.0f);
     }
 
     /**
-     * Create a new color, not transparent.
+     * Create a new color.
+     * 
+     * 
+     * @param r
+     *            red value between 0 and 255
+     * @param g
+     *            green value between 0 and 255
+     * @param b
+     *            blue value between 0 and 255
+     * @param a
+     *            alpha value between 0.0 and 1.0f
      */
     public RgbaColor(int r, int g, int b, float a) {
         this.r = r;
@@ -65,14 +82,12 @@ public class RgbaColor {
         return a;
     }
 
-    @Override
-    public boolean equals(Object obj) {
-        if (obj instanceof RgbaColor) {
-            RgbaColor col = (RgbaColor) obj;
-            return this.a == col.a && this.b == col.b && this.g == col.g && this.r == col.r;
-        } else {
-            return super.equals(obj);
-        }
+    public boolean equals(RgbaColor col) {
+        return this.r == col.r && this.g == col.g && this.b == col.b && this.a == col.a;
     }
 
+    @Override
+    public String toString() {
+        return "RgbaColor: (Red:" + r + " Green:" + g + " Blue:" + b + " Alpha:" + a + ")";
+    }
 }

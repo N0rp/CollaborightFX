@@ -54,7 +54,11 @@ public class SketchView extends Canvas {
     }
 
     public void setStrokeColor(Color color) {
-        sketch.setStrokeColor(toModel(color));
+        RgbaColor col = toModel(color);
+        System.out.println("Setting stroke color from: " + sketch.getStrokeColor());
+        System.out.println("Setting stroke color over: " + toString(color));
+        System.out.println("Setting stroke color to: " + col);
+        sketch.setStrokeColor(col);
     }
 
     public Color getStrokeColor() {
@@ -266,11 +270,28 @@ public class SketchView extends Canvas {
      * @return
      */
     public static RgbaColor toModel(Color color) {
-        return new RgbaColor((int) (color.getRed() * 255), (int) (color.getRed() * 255), (int) (color.getRed() * 255),
-                (float) color.getOpacity());
+        int red = (int) (color.getRed() * 255);
+        int green = (int) (color.getGreen() * 255);
+        int blue = (int) (color.getBlue() * 255);
+        float alpha = (float) color.getOpacity();
+
+        RgbaColor c = new RgbaColor(red, green, blue, alpha);
+        return c;
     }
 
     public static Color toFx(RgbaColor color) {
-        return Color.rgb(color.getRed(), color.getGreen(), color.getBlue(), color.getAlpha());
+        int red = color.getRed();
+        int green = color.getGreen();
+        int blue = color.getBlue();
+        double alpha = color.getAlpha();
+
+        Color c = Color.rgb(red, green, blue, alpha);
+        String cStr = toString(c);
+        return c;
+    }
+
+    public static String toString(Color color) {
+        return "Color (Red:" + color.getRed() + " Green:" + color.getGreen() + " Blue:" + color.getBlue() + " Alpha:"
+                + color.getOpacity() + ")";
     }
 }
