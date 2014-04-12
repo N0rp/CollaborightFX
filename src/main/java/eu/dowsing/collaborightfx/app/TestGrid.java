@@ -1,5 +1,6 @@
 package eu.dowsing.collaborightfx.app;
 
+import java.io.IOException;
 import java.util.prefs.Preferences;
 
 import javafx.application.Application;
@@ -17,12 +18,7 @@ import javafx.scene.control.ColorPicker;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Control;
 import javafx.scene.control.ListCell;
-import javafx.scene.control.ListView;
-import javafx.scene.control.SelectionMode;
-import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleButton;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
@@ -31,7 +27,6 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
-import javafx.util.Callback;
 
 import org.controlsfx.control.ButtonBar;
 import org.controlsfx.control.ButtonBar.ButtonType;
@@ -42,9 +37,10 @@ import org.controlsfx.control.SegmentedButton;
 import org.jivesoftware.smack.RosterEntry;
 import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.packet.Message;
+import org.simpleframework.xml.core.ValueRequiredException;
 
 import eu.dowsing.collaborightfx.app.xmpp.OnChangeUpdateTextListener;
-import eu.dowsing.collaborightfx.app.xmpp.OnStructureUpdateListener;
+import eu.dowsing.collaborightfx.app.xmpp.OnRemoteConstructUpdateListener;
 import eu.dowsing.collaborightfx.app.xmpp.XmppConnector;
 import eu.dowsing.collaborightfx.app.xmpp.XmppConnector.ConnectStatus;
 import eu.dowsing.collaborightfx.preferences.PreferenceLoader;
@@ -54,21 +50,11 @@ import eu.dowsing.collaborightfx.sketch.Sketch;
 import eu.dowsing.collaborightfx.sketch.SketchLoader;
 import eu.dowsing.collaborightfx.sketch.structure.Shape;
 import eu.dowsing.collaborightfx.view.painting.SketchView;
-import eu.dowsing.collaborightfx.view.painting.ToggleButtonEventHandler;
 
 public class TestGrid extends Application {
 
     private SketchLoader sketchLoader = new SketchLoader("res/sketch/");
     private final XmppConnector jabber = new XmppConnector();
-
-    private Text upperListLabel = new Text("Upper");
-    private Text bottomListLabel = new Text("Lower");
-
-    private ListView<String> sketchList = new ListView<>();
-    private ListView<RosterEntry> userList = new ListView<>();
-    private ListView<Message> messageList = new ListView<>();
-    private TextField messageField = new TextField();
-    private Button messageSend = new Button("Send");
 
     private ObservableList<Integer> lineWidthOptions = FXCollections.observableArrayList(1, 2, 5, 10);
     private ComboBox<Integer> lineWidthCombo = new ComboBox<>(lineWidthOptions);
@@ -95,12 +81,9 @@ public class TestGrid extends Application {
     private ToggleButton tbSelect = new ToggleButton("Select");
     private SegmentedButton toolButtons = new SegmentedButton(tbDraw, tbText, tbSelect);
 
-    private ToggleButton btPartners = new ToggleButton("Current");
-    private ToggleButton btContacts = new ToggleButton("Contacts");
-    private ToggleButton btSketches = new ToggleButton("Paintings");
-    private SegmentedButton listButtons = new SegmentedButton(btPartners, btContacts, btSketches);
-
     private NotificationPane notificationPane;
+
+    private DetailBox detailBox;
 
     private static final String APP_TITLE = "Collaboright";
 
@@ -125,6 +108,12 @@ public class TestGrid extends Application {
         xmppConnectLogin();
     }
 
+    @Override
+    public void stop() {
+        System.out.println("JavaFx Stop");
+        jabber.disconnect();
+    }
+
     private void loadSketch() {
         try {
             Preferences p = PreferenceLoader.getInstance().getCurrentPreferences();
@@ -136,7 +125,7 @@ public class TestGrid extends Application {
                 public void onCosntructUpdate(Shape shape, boolean create) {
                     System.out.println("On structure update for " + shape);
 
-                    RosterEntry entry = userList.getSelectionModel().getSelectedItem();
+                    RosterEntry entry = detailBox.getSelectedUser();
                     if (entry != null) {
                         System.out.println("Sending sketch update to " + entry.getUser());
                         try {
@@ -150,8 +139,14 @@ public class TestGrid extends Application {
                     }
                 }
             });
+        } catch (ValueRequiredException e) {
+            System.err.println("TestGrid: Could not load initial sketch because it is mallformed");
+            e.printStackTrace();
+        } catch (IOException e) {
+            System.err.println("TestGrid: Problem accessing file system");
+            e.printStackTrace();
         } catch (Exception e) {
-            System.err.println("Could not load initial painting");
+            System.err.println("TestGrid: Some other error when loading initial painting");
             e.printStackTrace();
         }
 
@@ -177,9 +172,8 @@ public class TestGrid extends Application {
         Pane sketchBox = new VBox();
 
         // details
-        Pane detailBox = new VBox();
-        Pane listBox = new VBox();
-        final Pane messageBox = new HBox();
+        detailBox = new DetailBox(jabber);
+        PaintDetailsBox paintDetailBox = new PaintDetailsBox();
 
         // content
         final MasterDetailPane contentBox = new MasterDetailPane();
@@ -210,25 +204,9 @@ public class TestGrid extends Application {
         // canvas
         sketchBox.getChildren().addAll(sketchView);
 
-        // details
-        detailBox.getChildren().addAll(listButtons, listBox);
-        listBox.getChildren().addAll(upperListLabel, userList, sketchList, bottomListLabel, messageList, messageBox);
-        messageBox.getChildren().addAll(messageField, messageSend);
-
         /* **********************
          * Create Control
          */
-        btPartners.setOnAction(new ToggleButtonEventHandler(userList, jabber.getHistory()
-                .getXmppSktechPartnerContacts(), upperListLabel, "Partners")
-                .addListAndData(messageList, jabber.getHistory().getXmppSelectedPartnerChat(), bottomListLabel,
-                        "PartnerMessages").addHide(sketchList).setSelected(btPartners).addShow(messageBox));
-
-        btContacts.setOnAction(new ToggleButtonEventHandler(userList, jabber.getXmppOnlineContacts(), upperListLabel,
-                "Contacts").addListAndData(messageList, jabber.getHistory().getXmppSelectedContactChat(),
-                bottomListLabel, "ContactMessages").addHide(sketchList, messageList, bottomListLabel, messageBox));
-
-        btSketches.setOnAction(new ToggleButtonEventHandler(sketchList, sketchLoader.getSketchFileNames(),
-                upperListLabel, "Sketches").addHide(userList, messageList, bottomListLabel, messageBox));
 
         bUser.setOnAction(new EventHandler<ActionEvent>() {
             @Override
@@ -275,86 +253,8 @@ public class TestGrid extends Application {
             }
         });
 
-        messageSend.setOnAction(new EventHandler<ActionEvent>() {
-            @Override
-            public void handle(ActionEvent ke) {
-                sendMessageToSelectedUser();
-            }
-        });
-        // set messages sender
-        messageField.setOnKeyPressed(new EventHandler<KeyEvent>() {
-            @Override
-            public void handle(KeyEvent ke) {
-                if (ke.getCode().equals(KeyCode.ENTER)) {
-                    sendMessageToSelectedUser();
-                }
-            }
-        });
-
-        // set list cell factories
-        userList.setCellFactory(new Callback<ListView<RosterEntry>, ListCell<RosterEntry>>() {
-            @Override
-            public ListCell<RosterEntry> call(ListView<RosterEntry> list) {
-                return new RosterEntryCell();
-            }
-        });
-
-        messageList.setCellFactory(new Callback<ListView<Message>, ListCell<Message>>() {
-            @Override
-            public ListCell<Message> call(ListView<Message> list) {
-                return new MessageCell(jabber);
-            }
-        });
-
-        userList.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
-        userList.getSelectionModel().selectedItemProperty().addListener(new ChangeListener<RosterEntry>() {
-            public void changed(ObservableValue<? extends RosterEntry> ov, RosterEntry oldVal, RosterEntry newVal) {
-                if (btPartners.isSelected()) {
-
-                } else if (btContacts.isSelected()) {
-                    if (newVal != null) {
-                        jabber.getHistory().setSelectedContact(newVal.getUser());
-                        bottomListLabel.setVisible(true);
-                        messageList.setVisible(true);
-                        messageBox.setVisible(true);
-                    } else {
-                        messageBox.setVisible(false);
-                    }
-                } else if (btSketches.isSelected()) {
-
-                }
-            }
-        });
-
         notificationPane = new NotificationPane(main);
         return notificationPane;
-    }
-
-    private void sendMessageToSelectedUser() {
-        String msg = messageField.getText();
-        if (msg.isEmpty()) {
-            return;
-        }
-
-        try {
-            sendMessageToSelectedUser(msg);
-
-        } catch (XMPPException e) {
-            System.err.println("Could not send message " + msg);
-            e.printStackTrace();
-        }
-        messageField.setText("");
-    }
-
-    private void sendMessageToSelectedUser(String message) throws XMPPException {
-        if (btPartners.isSelected()) {
-
-        } else if (btContacts.isSelected()) {
-            RosterEntry selected = userList.getSelectionModel().getSelectedItem();
-            if (selected != null) {
-                jabber.getSender().sendMessage(message, selected.getUser());
-            }
-        }
     }
 
     private static String getUser(String from) {
@@ -462,7 +362,7 @@ public class TestGrid extends Application {
         jabber.getXmppPort().addListener(new OnChangeUpdateTextListener<>("Port:", "").setLables(lXPort));
         jabber.getXmppUser().addListener(
                 new OnChangeUpdateTextListener<>("User:", "").setButtons(bUser).setLables(lXUser));
-        jabber.getReceiver().addOnConstructUpdateListener(new OnStructureUpdateListener() {
+        jabber.getReceiver().addOnRemoteConstructUpdateListener(new OnRemoteConstructUpdateListener() {
 
             @Override
             public void onConstructUpdate(Shape shape) {

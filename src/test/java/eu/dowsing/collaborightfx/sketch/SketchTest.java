@@ -9,6 +9,7 @@ import java.util.List;
 import org.simpleframework.xml.Serializer;
 import org.simpleframework.xml.core.Persister;
 import org.testng.Assert;
+import org.testng.annotations.Test;
 
 import eu.dowsing.collaborightfx.sketch.structure.Shape;
 
@@ -16,6 +17,7 @@ public class SketchTest {
 
     private final String simpleSketchPath = "src/test/resources/sketch/SimpleSketch.skml";
 
+    @Test
     public void testSimpleSerialization() {
         Shape shape1 = new Shape(5, 5, 12, null);
         shape1.addPoint(10, 20, true, null);
@@ -41,6 +43,7 @@ public class SketchTest {
         System.out.println("Simple serialization result is:\n" + w.toString());
     }
 
+    @Test
     public void testSimpleDeSerialization() {
         File simpleSketch = new File(simpleSketchPath);
         if (!simpleSketch.exists()) {

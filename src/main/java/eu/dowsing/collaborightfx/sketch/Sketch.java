@@ -244,6 +244,8 @@ public class Sketch {
      * @param filePath
      * @return
      * @throws Exception
+     *             if simplexml cannot read the file a ValueRequiredException or an IOException when the file system
+     *             made problems
      */
     public static Sketch load(String filePath) throws Exception {
         Serializer serializer = new Persister();

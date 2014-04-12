@@ -1,6 +1,7 @@
 package eu.dowsing.collaborightfx.sketch.misc;
 
 import org.simpleframework.xml.Attribute;
+import org.simpleframework.xml.Element;
 
 public class Point {
 

@@ -2,7 +2,6 @@ package eu.dowsing.collaborightfx.app.xmpp;
 
 import org.jivesoftware.smack.Chat;
 import org.jivesoftware.smack.XMPPException;
-import org.jivesoftware.smack.packet.DefaultPacketExtension;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.util.StringUtils;
 
@@ -38,10 +37,7 @@ public class XmppSender {
         Chat chat = receiver.getChat(jid);
         Message msg = new Message(jid, Message.Type.chat);
         StructureUpdate transaction = new StructureUpdate(testStructureId++, shape);
-        DefaultPacketExtension ext = new DefaultPacketExtension(StructureUpdate.NAME, StructureUpdate.NS);
-        ext.setValue("transaction", transaction.toXML());
-        ext.setValue("test", "test");
-        msg.addExtension(ext);
+        msg.addExtension(transaction);
         chat.sendMessage(msg);
         // conn.sendPacket(msg);
     }

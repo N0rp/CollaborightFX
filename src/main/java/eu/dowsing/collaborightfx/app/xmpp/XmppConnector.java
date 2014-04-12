@@ -269,6 +269,7 @@ public class XmppConnector {
 
     public void disconnect() {
         if (conn != null) {
+            System.out.println("Jabber: Disconnecting");
             conn.disconnect();
         }
     }

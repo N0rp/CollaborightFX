@@ -28,21 +28,21 @@ public class XmppReceiver implements ChatManagerListener, MessageListener, Packe
 
     private XmppHistory history;
     private ChatManager chatManager;
+    private List<OnRemoteConstructUpdateListener> remoteConstructListener = new LinkedList<>();
 
-    private List<OnStructureUpdateListener> constructListener = new LinkedList<>();
-
-    public void addOnConstructUpdateListener(OnStructureUpdateListener listener) {
-        this.constructListener.add(listener);
+    public void addOnRemoteConstructUpdateListener(OnRemoteConstructUpdateListener listener) {
+        this.remoteConstructListener.add(listener);
     }
 
     private void notifyOnConstructUpdateListener(Shape shape) {
-        for (OnStructureUpdateListener listener : this.constructListener) {
+        for (OnRemoteConstructUpdateListener listener : this.remoteConstructListener) {
             listener.onConstructUpdate(shape);
         }
     }
 
     public void setData(XmppHistory history, ChatManager manager) {
         this.history = history;
+        this.chatManager = manager;
 
         chatManager.addChatListener(this);
         ProviderManager.getInstance().addExtensionProvider(StructureUpdate.NAME, StructureUpdate.NS, this);
@@ -81,7 +81,7 @@ public class XmppReceiver implements ChatManagerListener, MessageListener, Packe
 
         if (message != null) {
 
-            PacketExtension ext = message.getExtension("structureUpdate", "http://www.dowsing.eu/collaboright");
+            PacketExtension ext = message.getExtension(StructureUpdate.NAME, StructureUpdate.NS);
 
             if (ext != null) {
                 System.out.println("Xmpp: Received a structure update extension of class " + ext.getClass());
@@ -100,28 +100,17 @@ public class XmppReceiver implements ChatManagerListener, MessageListener, Packe
                         e.printStackTrace();
                     }
                 } else if (ext instanceof StructureUpdate) {
-                    StructureUpdate def = (StructureUpdate) ext;
-                    System.out.println("Xmpp: Structure update content is " + def.toXML());
+                    StructureUpdate update = (StructureUpdate) ext;
+                    System.out.println("Xmpp: Structure update content is " + update.toXML());
                     try {
-                        StructureUpdate update = StructureUpdate.fromExtension(ext);
                         notifyOnConstructUpdateListener(update.getConstruct());
                         System.out.println("Struture update for id " + update.getStructureId());
                     } catch (Exception e) {
                         System.err.println("Could not transform extension into structure update");
                         e.printStackTrace();
                     }
+
                 }
-                // StructureUpdate update = (StructureUpdate) ext;
-                // System.out.println("MyMessageListener: 1/2 Received a structure update for structure id: "
-                // + update.getStructureId());
-                // try {
-                // update.updateFromXml();
-                // } catch (Exception e) {
-                // System.err.println("MyMessageListener: Could not update from xml because");
-                // e.printStackTrace();
-                // }
-                // System.out.println("MyMessageListener: 2/2 Received a structure update for structure id: "
-                // + update.getStructureId());
             }
 
             if (type == Message.Type.chat && bodyCount >= 1) {
@@ -136,35 +125,24 @@ public class XmppReceiver implements ChatManagerListener, MessageListener, Packe
                 System.out.println("MyMessageListener: Received extensioncount " + message.getExtensions().size());
                 for (PacketExtension extension : message.getExtensions()) {
                     System.out.println("  Extension element " + extension.getElementName() + " and namespace "
-                            + extension.getNamespace());
-                }
-
-                Object tmp = message.getExtension(MyExtension.NAME, MyExtension.NS);
-                if (tmp != null) {
-                    MyExtension transaction = (MyExtension) tmp;
-                    System.out.println("Extension received with value " + transaction.getValue("foo"));
+                            + extension.getNamespace() + " and xml:\n" + extension.toXML());
                 }
             }
         }
     }
 
-    private class MyExtension extends DefaultPacketExtension {
-
-        public static final String NAME = "Sketch";
-        public static final String NS = "eu.dowsing.collaboright";
-
-        public MyExtension() {
-            super(NAME, NS);
-        }
-
-    }
-
     @Override
-    public PacketExtension parseExtension(XmlPullParser parser) throws Exception {
-        System.out.println("Parsing exception, text is: " + parser.getText());
-        parser.getText();
-        DefaultPacketExtension tmp = new DefaultPacketExtension(StructureUpdate.NAME, StructureUpdate.NS);
-        tmp.setValue("works?", "works!");
-        return tmp;
+    public PacketExtension parseExtension(XmlPullParser xpp) throws Exception {
+        System.out.println("XmppReceier: Parsing packet");
+        XmlPullUnparser unparser = XmlPullUnparser.unparse(xpp, 1, true);
+        System.out.println("XmppReceier: Parsing packet with xml: " + unparser.getXml());
+        if (unparser.getFirstTag().equalsIgnoreCase(StructureUpdate.NAME)) {
+            StructureUpdate update = StructureUpdate.fromXml(unparser.getXml());
+            return update;
+        } else {
+            DefaultPacketExtension def = new DefaultPacketExtension("foo", "bar");
+            def.setValue("foo", "bar");
+            return def;
+        }
     }
 }

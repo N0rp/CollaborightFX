@@ -4,15 +4,12 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Properties;
 
-import javafx.application.Application;
-
 import org.jivesoftware.smack.XMPPException;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import eu.dowsing.collaborightfx.app.TestGrid;
 import eu.dowsing.collaborightfx.app.xmpp.XmppConnector;
 import eu.dowsing.collaborightfx.app.xmpp.XmppConnector.ConnectStatus;
 
@@ -80,7 +77,7 @@ public class SketchSynchroTest {
         // server.setSelectedContact(clientJid);
         client.getHistory().setSelectedContact(serverJid);
 
-        Application.launch(TestGrid.class);
+        // Application.launch(TestGrid.class);
     }
 
     @AfterClass
