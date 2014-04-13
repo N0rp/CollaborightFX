@@ -1,13 +1,12 @@
-package eu.dowsing.collaborightfx.sketch;
+package eu.dowsing.collaborightfx.sketch.structure;
 
-import eu.dowsing.collaborightfx.sketch.structure.Shape;
 
 /**
  * 
  * @author richardg
  * 
  */
-public interface OnModificationFinishedListener {
+public interface ModificationFinishedListener {
 
     /**
      * Called when the shape is no longer being modified by the user.

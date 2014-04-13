@@ -1,12 +1,12 @@
 package eu.dowsing.collaborightfx.sketch;
 
 /**
- * Contains data how the painting is transformed.
+ * Contains data how the painting is transformed to match the current viewpoint.
  * 
  * @author richardg
  * 
  */
-public class PaintingTransform {
+public class ViewPoint {
 
     private double offsetX = 0.0;
     private double offsetY = 0.0;

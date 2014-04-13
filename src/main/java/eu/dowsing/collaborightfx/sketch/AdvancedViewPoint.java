@@ -1,7 +1,12 @@
 package eu.dowsing.collaborightfx.sketch;
 
-
-public class PaintingMover extends PaintingTransform {
+/**
+ * Can handle mouse viewpoint changes.
+ * 
+ * @author richardg
+ * 
+ */
+public class AdvancedViewPoint extends ViewPoint {
 
     private double moveStartX;
     private double moveStartY;

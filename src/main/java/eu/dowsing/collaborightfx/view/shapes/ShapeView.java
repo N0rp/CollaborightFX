@@ -4,7 +4,7 @@ import java.util.List;
 
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
-import eu.dowsing.collaborightfx.sketch.PaintingTransform;
+import eu.dowsing.collaborightfx.sketch.ViewPoint;
 import eu.dowsing.collaborightfx.sketch.misc.Point;
 import eu.dowsing.collaborightfx.sketch.misc.RgbaColor;
 import eu.dowsing.collaborightfx.sketch.structure.Shape;
@@ -59,10 +59,14 @@ public class ShapeView {
         gc.setLineWidth(getLineWidth());
     }
 
-    public void draw(GraphicsContext gc, PaintingTransform transform) {
+    public void draw(GraphicsContext gc, ViewPoint transform) {
         gc.setFill(fill);
         gc.setStroke(stroke);
-        gc.setLineWidth(shape.getLineWidth());
+        if (transform != null) {
+            gc.setLineWidth(shape.getLineWidth() * transform.getScale());
+        } else {
+            gc.setLineWidth(shape.getLineWidth());
+        }
 
         List<Point> points = shape.getUntransformedPoints(transform);
         boolean first = true;

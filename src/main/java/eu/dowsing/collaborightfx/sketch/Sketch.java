@@ -9,8 +9,11 @@ import org.simpleframework.xml.ElementList;
 import org.simpleframework.xml.Serializer;
 import org.simpleframework.xml.core.Persister;
 
+import eu.dowsing.collaborightfx.sketch.misc.Point;
 import eu.dowsing.collaborightfx.sketch.misc.RgbaColor;
 import eu.dowsing.collaborightfx.sketch.misc.User;
+import eu.dowsing.collaborightfx.sketch.structure.ModificationFinishedListener;
+import eu.dowsing.collaborightfx.sketch.structure.PointUpdateListener;
 import eu.dowsing.collaborightfx.sketch.structure.Shape;
 
 /**
@@ -23,7 +26,7 @@ public class Sketch {
 
     public static final RgbaColor DEFAULT_BACKGROUND = RgbaColor.WHITE;
     public static final RgbaColor DEFAULT_FILL = RgbaColor.BLUE;
-    public static final RgbaColor DEFAULT_STROKE = RgbaColor.GREEN;
+    public static final RgbaColor DEFAULT_STROKE = RgbaColor.RED;
 
     public static final double DEFAULT_LINE_WIDTH = 5;
 
@@ -89,6 +92,7 @@ public class Sketch {
     }
 
     public void setLineWidth(double lineWidth) {
+        System.out.println("SKetch: Line Width now " + lineWidth);
         this.lineWidth = lineWidth;
     }
 
@@ -97,7 +101,7 @@ public class Sketch {
      * <hr/>
      * Do not forget that a shape needs to be set to modification done when user has finished drawing!!! This will be
      * done when you tell the sketch that the last point was added through
-     * {@link Shape#addPoint(double, double, boolean, PaintingMover)}.
+     * {@link Shape#addPoint(double, double, boolean, AdvancedViewPoint)}.
      * 
      * @param x
      * @param y
@@ -106,7 +110,7 @@ public class Sketch {
      * @param mover
      * @return
      */
-    public Shape createConstruct(double x, double y, boolean isModificationFinished, PaintingMover mover) {
+    public Shape createConstruct(double x, double y, boolean isModificationFinished, AdvancedViewPoint mover) {
         Shape shape = new Shape(x, y, lineWidth, mover);
         shape.setFill(fillColor);
         shape.setStroke(strokeColor);
@@ -116,12 +120,40 @@ public class Sketch {
         return shape;
     }
 
-    private void addConstruct(Shape shape, boolean isRemote) {
+    /**
+     * Add a new construct to the sketch.
+     * 
+     * @param shape
+     * @param isRemote
+     */
+    private void addConstruct(Shape shape, final boolean isRemote) {
         this.shapes.add(shape);
-        notifyOnConstructUpdateListener(shape, true);
+        if (!isRemote && !shape.isModificationFinished()) {
+            // make sure new notification is created once the construct is done
+            shape.setOnModificationFinishedListener(new ModificationFinishedListener() {
+                @Override
+                public void onModificationFinished(Shape shape) {
+                    notifyOnConstructUpdateListener(shape, isRemote, OnConstructUpdateListener.Type.UPDATE_DONE);
+                }
+            });
+            shape.setPointUpdateListener(new PointUpdateListener() {
+
+                @Override
+                public void onPointUpdate(Shape shape, Point point) {
+                    if (shape.isModificationFinished()) {
+                        notifyOnConstructUpdateListener(shape, isRemote, OnConstructUpdateListener.Type.UPDATE_DONE);
+                    } else {
+                        notifyOnConstructUpdateListener(shape, isRemote,
+                                OnConstructUpdateListener.Type.UPDATE_IN_PROGRESS);
+                    }
+                }
+            });
+        }
+        notifyOnConstructUpdateListener(shape, isRemote, OnConstructUpdateListener.Type.CREATE_IN_PROGRESS);
     }
 
     public void addRemoteConstruct(Shape shape) {
+        System.out.println("Sketch: Adding Construct");
         addConstruct(shape, true);
     }
 
@@ -198,10 +230,19 @@ public class Sketch {
         this.structureUpdateListener.add(listener);
     }
 
-    private void notifyOnConstructUpdateListener(Shape shape, boolean create) {
+    /**
+     * Notify the construct update listeners.
+     * 
+     * @param shape
+     * @param isRemote
+     *            if <tt>true</tt> construct was updated remotely, <tt>false</tt> if updated locally
+     * @param type
+     *            the type of the update
+     */
+    private void notifyOnConstructUpdateListener(Shape shape, boolean isRemote, OnConstructUpdateListener.Type type) {
         updateModificationTime();
         for (OnConstructUpdateListener listener : structureUpdateListener) {
-            listener.onCosntructUpdate(shape, create);
+            listener.onConstructUpdate(shape, isRemote, type);
         }
     }
 

@@ -5,13 +5,19 @@ import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.scene.control.Button;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleButton;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
@@ -53,6 +59,23 @@ public class DetailBox extends VBox {
         init();
         initData();
         initControl();
+        initContextMenu();
+    }
+
+    private final ContextMenu cm = new ContextMenu();
+
+    private void initContextMenu() {
+        MenuItem cmItem1 = new MenuItem("Copy Image");
+        cmItem1.setOnAction(new EventHandler<ActionEvent>() {
+            public void handle(ActionEvent e) {
+                Clipboard clipboard = Clipboard.getSystemClipboard();
+                ClipboardContent content = new ClipboardContent();
+                // content.putImage(pic.getImage());
+                clipboard.setContent(content);
+            }
+        });
+
+        cm.getItems().add(cmItem1);
     }
 
     public RosterEntry getSelectedUser() {
@@ -116,6 +139,19 @@ public class DetailBox extends VBox {
             }
         });
 
+        userList.addEventHandler(MouseEvent.MOUSE_CLICKED, new EventHandler<MouseEvent>() {
+            @Override
+            public void handle(MouseEvent e) {
+                if (e.getButton() == MouseButton.SECONDARY) {
+                    RosterEntry entry = userList.getSelectionModel().getSelectedItem();
+                    if (entry != null) {
+                        cm.show(userList, e.getScreenX(), e.getScreenY());
+                    } else {
+                        cm.show(btContacts, e.getScreenX(), e.getScreenY());
+                    }
+                }
+            }
+        });
         userList.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
         userList.getSelectionModel().selectedItemProperty().addListener(new ChangeListener<RosterEntry>() {
             public void changed(ObservableValue<? extends RosterEntry> ov, RosterEntry oldVal, RosterEntry newVal) {

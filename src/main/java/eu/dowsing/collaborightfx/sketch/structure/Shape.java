@@ -3,12 +3,12 @@ package eu.dowsing.collaborightfx.sketch.structure;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.simpleframework.xml.Attribute;
 import org.simpleframework.xml.Element;
 import org.simpleframework.xml.ElementList;
 
-import eu.dowsing.collaborightfx.sketch.OnModificationFinishedListener;
-import eu.dowsing.collaborightfx.sketch.PaintingMover;
-import eu.dowsing.collaborightfx.sketch.PaintingTransform;
+import eu.dowsing.collaborightfx.sketch.AdvancedViewPoint;
+import eu.dowsing.collaborightfx.sketch.ViewPoint;
 import eu.dowsing.collaborightfx.sketch.misc.Point;
 import eu.dowsing.collaborightfx.sketch.misc.RgbaColor;
 
@@ -31,16 +31,20 @@ public class Shape {
     private List<Point> path = new LinkedList<>();
 
     /** If <code>true</code> shape is done and user does not want to change it any more. **/
+    @Attribute
     private boolean isModificationFinished = false;
 
-    private OnModificationFinishedListener modificationFinishedListener;
+    private ModificationFinishedListener modificationFinishedListener;
+    private PointUpdateListener pointUpdateListener;
 
     public Shape(@ElementList(name = "path") List<Point> path, @Element(name = "fillColor") RgbaColor fillColor,
-            @Element(name = "strokeColor") RgbaColor strokeColor, @Element(name = "lineWidth") double lineWidth) {
+            @Element(name = "strokeColor") RgbaColor strokeColor, @Element(name = "lineWidth") double lineWidth,
+            @Attribute(name = "isModificationFinished") boolean isModificationFinished) {
         this.path = path;
         this.fillColor = fillColor;
         this.strokeColor = strokeColor;
         this.lineWidth = lineWidth;
+        this.isModificationFinished = isModificationFinished;
     }
 
     /**
@@ -57,19 +61,33 @@ public class Shape {
      *            Determines by how much the point needs to be moved/scaled. Can be <code>null</code> if no
      *            moving/scaling is necessary
      */
-    public Shape(double startX, double startY, double lineWidth, PaintingMover mover) {
-        this.lineWidth = lineWidth;
+    public Shape(double startX, double startY, double lineWidth, AdvancedViewPoint mover) {
+        if (mover != null) {
+            this.lineWidth = lineWidth / mover.getScale();
+        } else {
+            this.lineWidth = lineWidth;
+        }
 
         addPoint(startX, startY, false, mover);
     }
 
-    public void OnModificationFinishedListener(OnModificationFinishedListener listener) {
+    public void setOnModificationFinishedListener(ModificationFinishedListener listener) {
         this.modificationFinishedListener = listener;
     }
 
     private void notifyModificationFinishedListener() {
         if (this.modificationFinishedListener != null) {
             this.modificationFinishedListener.onModificationFinished(this);
+        }
+    }
+
+    public void setPointUpdateListener(PointUpdateListener listener) {
+        this.pointUpdateListener = listener;
+    }
+
+    private void notifyPointUpdateListener(Shape shape, Point point) {
+        if (this.pointUpdateListener != null) {
+            this.pointUpdateListener.onPointUpdate(shape, point);
         }
     }
 
@@ -113,9 +131,11 @@ public class Shape {
      *            determines by how much the point needs to be moved/scaled. Can be <code>null</code> if no
      *            moving/scaling is necessary
      */
-    public void addPoint(double x, double y, boolean isModificationFinished, PaintingMover mover) {
+    public void addPoint(double x, double y, boolean isModificationFinished, AdvancedViewPoint mover) {
         Point transformed = transform(x, y, mover);
         path.add(transformed);
+
+        notifyPointUpdateListener(this, transformed);
         setModificationFinished(isModificationFinished);
     }
 
@@ -152,22 +172,22 @@ public class Shape {
      *            the data for visual displacement, can be null
      * @return the transformed coordinates in the order [x, y]
      */
-    private Point transform(double x, double y, PaintingMover mover) {
+    private Point transform(double x, double y, AdvancedViewPoint mover) {
         if (mover != null) {
-            x += mover.getOffsetX();
-            y += mover.getOffsetY();
+            x = (x + mover.getOffsetX()) / mover.getScale();
+            y = (y + mover.getOffsetY()) / mover.getScale();
             // TODO scale
         }
         return new Point(x, y);
     }
 
-    private Point untransform(Point p, PaintingTransform transform) {
-        if (transform == null) {
+    private Point untransform(Point p, ViewPoint vp) {
+        if (vp == null) {
             return p;
         }
-        double x = p.getX() - transform.getOffsetX();
-        double y = p.getY() - transform.getOffsetY();
-        // TODO scale
+        double x = (p.getX() - vp.getOffsetX()) * vp.getScale();
+        double y = (p.getY() - vp.getOffsetY()) * vp.getScale();
+
         return new Point(x, y);
     }
 
@@ -179,7 +199,7 @@ public class Shape {
      * @param scale
      * @return
      */
-    public List<Point> getUntransformedPoints(PaintingTransform transform) {
+    public List<Point> getUntransformedPoints(ViewPoint transform) {
         List<Point> untransformed = new LinkedList<>();
         for (Point p : path) {
             Point un = untransform(p, transform);

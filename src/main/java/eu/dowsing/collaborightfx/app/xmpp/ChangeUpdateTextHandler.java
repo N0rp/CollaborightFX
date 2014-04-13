@@ -12,24 +12,24 @@ import javafx.scene.text.Text;
  * 
  * @param <T>
  */
-public class OnChangeUpdateTextListener<K> implements ChangeListener<K> {
+public class ChangeUpdateTextHandler<K> implements ChangeListener<K> {
 
     private Text[] labels = new Text[0];
     private Button[] buttons = new Button[0];
     private String prefix;
     private String postfix;
 
-    public OnChangeUpdateTextListener(String prefix, String postfix) {
+    public ChangeUpdateTextHandler(String prefix, String postfix) {
         this.prefix = prefix;
         this.postfix = postfix;
     }
 
-    public OnChangeUpdateTextListener<K> setLables(Text... labels) {
+    public ChangeUpdateTextHandler<K> setLables(Text... labels) {
         this.labels = labels;
         return this;
     }
 
-    public OnChangeUpdateTextListener<K> setButtons(Button... buttons) {
+    public ChangeUpdateTextHandler<K> setButtons(Button... buttons) {
         this.buttons = buttons;
         return this;
     }

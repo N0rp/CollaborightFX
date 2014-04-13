@@ -28,15 +28,15 @@ public class XmppReceiver implements ChatManagerListener, MessageListener, Packe
 
     private XmppHistory history;
     private ChatManager chatManager;
-    private List<OnRemoteConstructUpdateListener> remoteConstructListener = new LinkedList<>();
+    private List<RemoteConstructUpdateListener> remoteConstructListener = new LinkedList<>();
 
-    public void addOnRemoteConstructUpdateListener(OnRemoteConstructUpdateListener listener) {
+    public void addOnRemoteConstructUpdateListener(RemoteConstructUpdateListener listener) {
         this.remoteConstructListener.add(listener);
     }
 
-    private void notifyOnConstructUpdateListener(Shape shape) {
-        for (OnRemoteConstructUpdateListener listener : this.remoteConstructListener) {
-            listener.onConstructUpdate(shape);
+    private void notifyOnRemoteConstructUpdateListener(Shape shape) {
+        for (RemoteConstructUpdateListener listener : this.remoteConstructListener) {
+            listener.onRemoteConstructUpdate(shape);
         }
     }
 
@@ -93,7 +93,7 @@ public class XmppReceiver implements ChatManagerListener, MessageListener, Packe
                     System.out.println("Xmpp: Default extension test value is " + def.getValue("test"));
                     try {
                         StructureUpdate update = StructureUpdate.fromXml(def.getValue("transaction"));
-                        notifyOnConstructUpdateListener(update.getConstruct());
+                        notifyOnRemoteConstructUpdateListener(update.getConstruct());
                         System.out.println("Struture update for id " + update.getStructureId());
                     } catch (Exception e) {
                         System.err.println("Could not transform extension into structure update");
@@ -103,7 +103,7 @@ public class XmppReceiver implements ChatManagerListener, MessageListener, Packe
                     StructureUpdate update = (StructureUpdate) ext;
                     System.out.println("Xmpp: Structure update content is " + update.toXML());
                     try {
-                        notifyOnConstructUpdateListener(update.getConstruct());
+                        notifyOnRemoteConstructUpdateListener(update.getConstruct());
                         System.out.println("Struture update for id " + update.getStructureId());
                     } catch (Exception e) {
                         System.err.println("Could not transform extension into structure update");

@@ -22,6 +22,7 @@ import javafx.scene.control.ToggleButton;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
@@ -39,8 +40,8 @@ import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.packet.Message;
 import org.simpleframework.xml.core.ValueRequiredException;
 
-import eu.dowsing.collaborightfx.app.xmpp.OnChangeUpdateTextListener;
-import eu.dowsing.collaborightfx.app.xmpp.OnRemoteConstructUpdateListener;
+import eu.dowsing.collaborightfx.app.xmpp.ChangeUpdateTextHandler;
+import eu.dowsing.collaborightfx.app.xmpp.RemoteConstructUpdateListener;
 import eu.dowsing.collaborightfx.app.xmpp.XmppConnector;
 import eu.dowsing.collaborightfx.app.xmpp.XmppConnector.ConnectStatus;
 import eu.dowsing.collaborightfx.preferences.PreferenceLoader;
@@ -51,13 +52,13 @@ import eu.dowsing.collaborightfx.sketch.SketchLoader;
 import eu.dowsing.collaborightfx.sketch.structure.Shape;
 import eu.dowsing.collaborightfx.view.painting.SketchView;
 
-public class TestGrid extends Application {
+public class TestGrid extends Application implements OnConstructUpdateListener {
 
     private SketchLoader sketchLoader = new SketchLoader("res/sketch/");
     private final XmppConnector jabber = new XmppConnector();
 
-    private ObservableList<Integer> lineWidthOptions = FXCollections.observableArrayList(1, 2, 5, 10);
-    private ComboBox<Integer> lineWidthCombo = new ComboBox<>(lineWidthOptions);
+    private ObservableList<Double> lineWidthOptions = FXCollections.observableArrayList(1.0, 2.0, 5.0, 7.5, 10.0, 15.0);
+    private ComboBox<Double> lineWidthCombo = new ComboBox<>(lineWidthOptions);
 
     private Sketch sketch;
     private SketchView sketchView;
@@ -86,6 +87,9 @@ public class TestGrid extends Application {
     private DetailBox detailBox;
 
     private static final String APP_TITLE = "Collaboright";
+
+    /** **/
+    private final boolean updateDrawLive = false;
 
     @Override
     public void start(Stage primaryStage) {
@@ -119,26 +123,8 @@ public class TestGrid extends Application {
             Preferences p = PreferenceLoader.getInstance().getCurrentPreferences();
             String openSketch = p.get(PreferenceWrapper.Keys.SKETCH_OPEN.toString(), "default.skml");
             sketch = sketchLoader.loadSketch(openSketch, true);
-            sketch.addOnConstructUpdateListener(new OnConstructUpdateListener() {
-
-                @Override
-                public void onCosntructUpdate(Shape shape, boolean create) {
-                    System.out.println("On structure update for " + shape);
-
-                    RosterEntry entry = detailBox.getSelectedUser();
-                    if (entry != null) {
-                        System.out.println("Sending sketch update to " + entry.getUser());
-                        try {
-                            jabber.getSender().sendSketchUpdate(entry.getUser(), shape);
-                        } catch (XMPPException e) {
-                            System.err.println("Could not send sketch update to user " + entry.getUser());
-                            e.printStackTrace();
-                        }
-                    } else {
-                        System.out.println("Cannot send sketch update because nothing was selected");
-                    }
-                }
-            });
+            // add the listener that will be called every time a construct is created/moved/changed
+            sketch.addOnConstructUpdateListener(this);
         } catch (ValueRequiredException e) {
             System.err.println("TestGrid: Could not load initial sketch because it is mallformed");
             e.printStackTrace();
@@ -149,7 +135,28 @@ public class TestGrid extends Application {
             System.err.println("TestGrid: Some other error when loading initial painting");
             e.printStackTrace();
         }
+    }
 
+    @Override
+    public void onConstructUpdate(Shape shape, boolean isRemote, Type type) {
+        if (!isRemote) {
+            if (type == OnConstructUpdateListener.Type.CREATE_DONE
+                    || type == OnConstructUpdateListener.Type.UPDATE_DONE
+                    || (type == OnConstructUpdateListener.Type.UPDATE_IN_PROGRESS && updateDrawLive)) {
+                RosterEntry entry = detailBox.getSelectedUser();
+                if (entry != null) {
+                    System.out.println("Sending sketch update to " + entry.getUser());
+                    try {
+                        jabber.getSender().sendSketchUpdate(entry.getUser(), shape);
+                    } catch (XMPPException e) {
+                        System.err.println("Could not send sketch update to user " + entry.getUser());
+                        e.printStackTrace();
+                    }
+                } else {
+                    System.out.println("Cannot send sketch update because nothing was selected");
+                }
+            }
+        }
     }
 
     private Control createAndInitUI(double maxWdith, double maxHeight) {
@@ -175,24 +182,33 @@ public class TestGrid extends Application {
         detailBox = new DetailBox(jabber);
         PaintDetailsBox paintDetailBox = new PaintDetailsBox();
 
-        // content
+        // main
+
         final MasterDetailPane contentBox = new MasterDetailPane();
         contentBox.setMasterNode(sketchBox);
         contentBox.setDetailNode(detailBox);
         contentBox.setDetailSide(Side.RIGHT);
-        contentBox.setShowDetailNode(true);
+        // contentBox.setShowDetailNode(true);
+        // contentBox.setDividerPosition(200);
+
+        StackPane pane = new StackPane();
+        pane.getChildren().addAll(contentBox);
 
         // finally
-        main.getChildren().addAll(controlBox, contentBox);
+        main.getChildren().addAll(controlBox, pane);
 
         /* **********************
          * Fill layout
          */
         // control
-        strokePicker.setValue(sketchView.getFillColor());
-        controlBox.setCenter(new HBox(toolButtons, strokePicker, lineWidthCombo));
+        strokePicker.setValue(sketchView.getStrokeColor());
+        lineWidthCombo.setEditable(true);
+        lineWidthCombo.setPromptText("Line Width");
+        lineWidthCombo.setValue(sketchView.getLineWidth());
+
+        controlBox.setRight(new HBox(toolButtons, strokePicker, lineWidthCombo, bHideShow));
         tbDraw.setSelected(true);
-        controlBox.setRight(new HBox(bUser, bHideShow));
+        controlBox.setLeft(new HBox(bUser));
         ButtonBar.setType(bHideShow, ButtonType.RIGHT);
 
         userDetails.getChildren().addAll(lXConnected, lXHost, lXPort, lXUser, lXContacts);
@@ -249,7 +265,14 @@ public class TestGrid extends Application {
         lineWidthCombo.setOnAction(new EventHandler<ActionEvent>() {
             @Override
             public void handle(ActionEvent arg0) {
-                sketchView.setLineWidth(lineWidthCombo.getValue());
+                try {
+                    sketchView.setLineWidth(lineWidthCombo.getValue());
+                } catch (ClassCastException e) {
+                    System.out.println("TestGrid: Info line width was wrong");
+                    lineWidthCombo.setValue(1.0);
+                    lineWidthCombo.setValue(sketchView.getLineWidth());
+                }
+
             }
         });
 
@@ -357,15 +380,15 @@ public class TestGrid extends Application {
             }
         });
         jabber.getXmppConnectStatus().addListener(
-                new OnChangeUpdateTextListener<>("Connected:", "").setLables(lXConnected));
-        jabber.propertyConnectedHost().addListener(new OnChangeUpdateTextListener<>("Host:", "").setLables(lXHost));
-        jabber.getXmppPort().addListener(new OnChangeUpdateTextListener<>("Port:", "").setLables(lXPort));
-        jabber.getXmppUser().addListener(
-                new OnChangeUpdateTextListener<>("User:", "").setButtons(bUser).setLables(lXUser));
-        jabber.getReceiver().addOnRemoteConstructUpdateListener(new OnRemoteConstructUpdateListener() {
+                new ChangeUpdateTextHandler<>("Connected:", "").setLables(lXConnected));
+        jabber.propertyConnectedHost().addListener(new ChangeUpdateTextHandler<>("Host:", "").setLables(lXHost));
+        jabber.getXmppPort().addListener(new ChangeUpdateTextHandler<>("Port:", "").setLables(lXPort));
+        jabber.getXmppUser()
+                .addListener(new ChangeUpdateTextHandler<>("User:", "").setButtons(bUser).setLables(lXUser));
+        jabber.getReceiver().addOnRemoteConstructUpdateListener(new RemoteConstructUpdateListener() {
 
             @Override
-            public void onConstructUpdate(Shape shape) {
+            public void onRemoteConstructUpdate(Shape shape) {
                 sketch.addRemoteConstruct(shape);
             }
         });

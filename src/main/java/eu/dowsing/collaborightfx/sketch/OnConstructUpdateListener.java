@@ -10,13 +10,19 @@ import eu.dowsing.collaborightfx.sketch.structure.Shape;
  */
 public interface OnConstructUpdateListener {
 
+    public enum Type {
+        CREATE_IN_PROGRESS, CREATE_DONE, UPDATE_IN_PROGRESS, UPDATE_DONE
+    }
+
     /**
      * Notified when construct receives an update.
      * 
      * @param shape
-     * @param create
-     *            <code>true</code> if the construct was just created locally
+     * @param isRemote
+     *            <code>true</code> if the construct was just created remotely, <tt>false</tt> if it was created locally
+     * @param type
+     *            the type of the update
      */
-    void onCosntructUpdate(Shape shape, boolean create);
+    void onConstructUpdate(Shape shape, boolean isRemote, Type type);
 
 }

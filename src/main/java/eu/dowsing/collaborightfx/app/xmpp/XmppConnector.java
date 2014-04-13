@@ -33,6 +33,9 @@ import org.jivesoftware.smack.util.StringUtils;
  */
 public class XmppConnector {
 
+    /** You should probably not use this service name. Connection seems to be impossible then. **/
+    // public static final String SERVICE_NAME = "Collabo";
+
     public enum ConnectStatus {
         NOT_CONNECTED, LOGGED_IN, NOT_LOGGED_IN
     }
@@ -212,6 +215,7 @@ public class XmppConnector {
     private void connect(String host, int port) throws XMPPException {
         ConnectionConfiguration config = new ConnectionConfiguration(host, 5222);
         config.setSASLAuthenticationEnabled(true);
+        // config.setServiceName(SERVICE_NAME);
 
         conn = new XMPPConnection(config);
         conn.connect();
