@@ -6,7 +6,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import eu.dowsing.collaborightfx.sketch.misc.RgbaColor;
-import eu.dowsing.collaborightfx.view.painting.SketchView;
+import eu.dowsing.collaborightfx.view.sketch.SketchView;
 
 public class RgbaColorTest {
     @Test

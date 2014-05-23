@@ -8,7 +8,7 @@ import org.testng.annotations.Test;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserFactory;
 
-import eu.dowsing.collaborightfx.app.xmpp.XmlPullUnparser;
+import eu.dowsing.collaborightfx.xmpp.app.XmlPullUnparser;
 
 /**
  * Tests that the xml pull unparser works as intended.

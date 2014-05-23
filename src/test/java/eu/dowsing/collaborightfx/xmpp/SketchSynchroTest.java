@@ -10,8 +10,8 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import eu.dowsing.collaborightfx.app.xmpp.XmppConnector;
-import eu.dowsing.collaborightfx.app.xmpp.XmppConnector.ConnectStatus;
+import eu.dowsing.collaborightfx.xmpp.app.XmppConnector;
+import eu.dowsing.collaborightfx.xmpp.app.XmppConnector.ConnectStatus;
 
 /**
  * Tests that the sketch synchronizes over the network.

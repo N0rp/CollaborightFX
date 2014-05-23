@@ -58,103 +58,36 @@ public class Sketch {
 
     private double lineWidth = DEFAULT_LINE_WIDTH;
 
+    private List<OnConstructUpdateListener> structureUpdateListener = new LinkedList<>();
+
+    /**
+     * 
+     * @param filePath
+     * @return
+     * @throws Exception
+     *             if simplexml cannot read the file a ValueRequiredException or an IOException when the file system
+     *             made problems
+     */
+    public static Sketch load(String filePath) throws Exception {
+        Serializer serializer = new Persister();
+        File source = new File(filePath);
+        if (source.exists()) {
+            System.out.println("Sketch: load: File " + filePath + " exists");
+            Sketch painting = serializer.read(Sketch.class, source);
+            painting.defaultLocation = filePath;
+            return painting;
+        } else {
+            System.out.println("Sketch: load: File " + filePath + " does not exist, creating");
+            source.createNewFile();
+            Sketch painting = new Sketch();
+            painting.defaultLocation = filePath;
+            painting.save();
+            return painting;
+        }
+    }
+
     public Sketch() {
         this.shapes = new LinkedList<>();
-    }
-
-    /**
-     * Generate a new unique structure id.
-     * 
-     * @return the structure id
-     */
-    public long generateStructureId() {
-        return maxId++;
-    }
-
-    public void setFillColor(RgbaColor fillColor) {
-        this.fillColor = fillColor;
-    }
-
-    public RgbaColor getFillColor() {
-        return this.fillColor;
-    }
-
-    public void setStrokeColor(RgbaColor strokeColor) {
-        this.strokeColor = strokeColor;
-    }
-
-    public RgbaColor getStrokeColor() {
-        return this.strokeColor;
-    }
-
-    public double getLineWidth() {
-        return this.lineWidth;
-    }
-
-    public void setLineWidth(double lineWidth) {
-        System.out.println("SKetch: Line Width now " + lineWidth);
-        this.lineWidth = lineWidth;
-    }
-
-    /**
-     * Create a new shape with the current painting parameters and add it to the list of shapes.
-     * <hr/>
-     * Do not forget that a shape needs to be set to modification done when user has finished drawing!!! This will be
-     * done when you tell the sketch that the last point was added through
-     * {@link Shape#addPoint(double, double, boolean, AdvancedViewPoint)}.
-     * 
-     * @param x
-     * @param y
-     * @param isModificationFinished
-     *            <code>false</code> if the user is still drawing or changing the construct, else <code>true</code>
-     * @param mover
-     * @return
-     */
-    public Shape createConstruct(double x, double y, boolean isModificationFinished, AdvancedViewPoint mover) {
-        Shape shape = new Shape(x, y, lineWidth, mover);
-        shape.setFill(fillColor);
-        shape.setStroke(strokeColor);
-        shape.setModificationFinished(isModificationFinished);
-
-        addConstruct(shape, false);
-        return shape;
-    }
-
-    /**
-     * Add a new construct to the sketch.
-     * 
-     * @param shape
-     * @param isRemote
-     */
-    private void addConstruct(Shape shape, final boolean isRemote) {
-        this.shapes.add(shape);
-        if (!isRemote && !shape.isModificationFinished()) {
-            // make sure new notification is created once the construct is done
-            shape.setOnModificationFinishedListener(new ModificationFinishedListener() {
-                @Override
-                public void onModificationFinished(Shape shape) {
-                    notifyOnConstructUpdateListener(shape, isRemote, OnConstructUpdateListener.Type.UPDATE_DONE);
-                }
-            });
-            shape.setPointUpdateListener(new PointUpdateListener() {
-
-                @Override
-                public void onPointUpdate(Shape shape, Point point) {
-                    if (shape.isModificationFinished()) {
-                        notifyOnConstructUpdateListener(shape, isRemote, OnConstructUpdateListener.Type.UPDATE_DONE);
-                    } else {
-                        notifyOnConstructUpdateListener(shape, isRemote,
-                                OnConstructUpdateListener.Type.UPDATE_IN_PROGRESS);
-                    }
-                }
-            });
-        }
-        notifyOnConstructUpdateListener(shape, isRemote, OnConstructUpdateListener.Type.CREATE_IN_PROGRESS);
-    }
-
-    public void addRemoteConstruct(Shape shape) {
-        System.out.println("Sketch: Adding Construct");
-        addConstruct(shape, true);
     }
 
     /**
@@ -212,38 +145,71 @@ public class Sketch {
     }
 
     /**
-     * Create a versioned copy of an existing file.
+     * Generate a new unique structure id.
      * 
-     * @param file
+     * @return the structure id
      */
-    private void versionFile(File file) {
-        // TODO
+    public long generateStructureId() {
+        return maxId++;
     }
 
-    private void updateModificationTime() {
-        this.modificationTime = System.currentTimeMillis();
+    public void setFillColor(RgbaColor fillColor) {
+        this.fillColor = fillColor;
     }
 
-    private List<OnConstructUpdateListener> structureUpdateListener = new LinkedList<>();
+    public RgbaColor getFillColor() {
+        return this.fillColor;
+    }
 
-    public void addOnConstructUpdateListener(OnConstructUpdateListener listener) {
-        this.structureUpdateListener.add(listener);
+    public void setStrokeColor(RgbaColor strokeColor) {
+        this.strokeColor = strokeColor;
+    }
+
+    public RgbaColor getStrokeColor() {
+        return this.strokeColor;
+    }
+
+    public double getLineWidth() {
+        return this.lineWidth;
+    }
+
+    public void setLineWidth(double lineWidth) {
+        System.out.println("SKetch: Line Width now " + lineWidth);
+        this.lineWidth = lineWidth;
     }
 
     /**
-     * Notify the construct update listeners.
+     * Create a new shape with the current painting parameters and add it to the list of shapes.
+     * <hr/>
+     * Do not forget that a shape needs to be set to modification done when user has finished drawing!!! This will be
+     * done when you tell the sketch that the last point was added through
+     * {@link Shape#addPoint(double, double, boolean, AdvancedViewPoint)}.
      * 
-     * @param shape
-     * @param isRemote
-     *            if <tt>true</tt> construct was updated remotely, <tt>false</tt> if updated locally
-     * @param type
-     *            the type of the update
+     * @param x
+     * @param y
+     * @param isModificationFinished
+     *            <code>false</code> if the user is still drawing or changing the construct, else <code>true</code>
+     * @param vp
+     *            the viewpoint of the user, i.e. how, from where/what direction he looks at the sketch
+     * @return
      */
-    private void notifyOnConstructUpdateListener(Shape shape, boolean isRemote, OnConstructUpdateListener.Type type) {
-        updateModificationTime();
-        for (OnConstructUpdateListener listener : structureUpdateListener) {
-            listener.onConstructUpdate(shape, isRemote, type);
-        }
+    public Shape createConstruct(double x, double y, boolean isModificationFinished, AdvancedViewPoint vp) {
+        Shape shape = new Shape(x, y, lineWidth, vp);
+        shape.setFill(fillColor);
+        shape.setStroke(strokeColor);
+        shape.setModificationFinished(isModificationFinished);
+
+        addConstruct(shape, false);
+        return shape;
+    }
+
+    public void addRemoteConstruct(Shape shape) {
+        System.out.println("Sketch: Adding Construct");
+        addConstruct(shape, true);
+    }
+
+    public void addOnConstructUpdateListener(OnConstructUpdateListener listener) {
+        this.structureUpdateListener.add(listener);
     }
 
     // private Shape addShape(Shape shape) {
@@ -281,28 +247,71 @@ public class Sketch {
     }
 
     /**
+     * Add a new construct to the sketch.
      * 
-     * @param filePath
-     * @return
-     * @throws Exception
-     *             if simplexml cannot read the file a ValueRequiredException or an IOException when the file system
-     *             made problems
+     * @param shape
+     * @param isRemote
      */
-    public static Sketch load(String filePath) throws Exception {
-        Serializer serializer = new Persister();
-        File source = new File(filePath);
-        if (source.exists()) {
-            System.out.println("Sketch: load: File " + filePath + " exists");
-            Sketch painting = serializer.read(Sketch.class, source);
-            painting.defaultLocation = filePath;
-            return painting;
-        } else {
-            System.out.println("Sketch: load: File " + filePath + " does not exist, creating");
-            source.createNewFile();
-            Sketch painting = new Sketch();
-            painting.defaultLocation = filePath;
-            painting.save();
-            return painting;
+    private void addConstruct(Shape shape, final boolean isRemote) {
+        this.shapes.add(shape);
+        if (!isRemote && !shape.isModificationFinished()) {
+            // make sure new notification is created once the construct is done
+            shape.setOnModificationFinishedListener(new ModificationFinishedListener() {
+                @Override
+                public void onModificationFinished(Shape shape) {
+                    notifyOnConstructUpdateListener(shape, isRemote, OnConstructUpdateListener.Type.UPDATE_DONE);
+                }
+            });
+            shape.setPointUpdateListener(new PointUpdateListener() {
+
+                @Override
+                public void onPointUpdate(Shape shape, Point point) {
+                    if (shape.isModificationFinished()) {
+                        notifyOnConstructUpdateListener(shape, isRemote, OnConstructUpdateListener.Type.UPDATE_DONE);
+                    } else {
+                        notifyOnConstructUpdateListener(shape, isRemote,
+                                OnConstructUpdateListener.Type.UPDATE_IN_PROGRESS);
+                    }
+                }
+            });
+        }
+        notifyOnConstructUpdateListener(shape, isRemote, OnConstructUpdateListener.Type.CREATE_IN_PROGRESS);
+    }
+
+    /**
+     * Create a versioned copy of an existing file.
+     * 
+     * @param file
+     */
+    private void versionFile(File file) {
+        // TODO
+    }
+
+    private void updateModificationTime() {
+        this.modificationTime = System.currentTimeMillis();
+    }
+
+    /**
+     * Notify the construct update listeners.
+     * 
+     * @param shape
+     * @param isRemote
+     *            if <tt>true</tt> construct was updated remotely, <tt>false</tt> if updated locally
+     * @param type
+     *            the type of the update
+     */
+    private void notifyOnConstructUpdateListener(Shape shape, boolean isRemote, OnConstructUpdateListener.Type type) {
+        updateModificationTime();
+        for (OnConstructUpdateListener listener : structureUpdateListener) {
+            listener.onConstructUpdate(shape, isRemote, type);
         }
     }
+
+    // private Shape addShape(Shape shape) {
+    // this.shapes.add(shape);
+    // updateModificationTime();
+    // notifyOnStructureUpdateListener(shape);
+    // return shape;
+    // }
+
 }
